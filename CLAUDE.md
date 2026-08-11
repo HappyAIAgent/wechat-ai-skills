@@ -102,6 +102,24 @@ npx @anthropic-ai/claude-code skills install jimliu/baoyu-skills
 ```
 安装完后自动更新 `skills-lock.json` 中的 hash。技能安装过程会生成 `.agents/skills/<技能名>/` 目录和 `.claude/skills/` 下的符号链接。
 
+### Windows 符号链接陷阱（重要）
+
+Claude Code 通过扫描 `.claude/skills/<技能名>/SKILL.md` 来发现技能。**在 Windows 上，符号链接可能静默失效**：git-bash 的 `ln -s` 在未开启「开发者模式」时无法创建真正的符号链接，会退化成**空目录**，结果技能一个都识别不到（`/skills` 列表为空）。
+
+- **诊断**：`.claude/skills/` 下应为 `lrwxrwxrwx ... -> .agents/skills/xxx`（`l` 开头）；若显示为 `drwxr-xr-x` 的**空目录**，即软链接已失效
+- **前提**：开启 Windows「开发者模式」（设置 → 隐私和安全性 → 开发者选项），或使用管理员终端
+- **修复**（在项目根目录执行，批量重建全部链接）：
+  ```powershell
+  $src = ".\agents\skills"; $dst = ".\claude\skills"
+  Get-ChildItem $dst -Directory | Remove-Item -Recurse -Force   # 清掉失效空目录
+  Get-ChildItem $src -Directory | ForEach-Object {
+    New-Item -ItemType SymbolicLink -Path (Join-Path $dst $_.Name) -Target $_.FullName
+  }
+  ```
+  单个技能：`cmd //c mklink /D .claude\skills\<技能名> .agents\skills\<技能名>`
+- `.claude/skills/` **不被 git 跟踪**，换机器克隆后需重新生成
+- 若怀疑 git 检出符号链接失效，检查 `git config core.symlinks` 应为 `true`
+
 安装指南见 `docs/guide.md`。
 
 ## 技能速查表
