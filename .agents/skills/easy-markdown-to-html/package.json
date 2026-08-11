@@ -1,0 +1,16 @@
+{
+  "name": "easy-markdown-to-html",
+  "type": "module",
+  "private": true,
+  "description": "Markdown → 公众号主题化 HTML（doocs/md 渲染引擎，主题/主题色/自定义 CSS 传参）",
+  "dependencies": {
+    "@md/core": "file:vendor/core",
+    "@md/shared": "file:vendor/shared",
+    "entities": "^8.0.0",
+    "fflate": "^0.8.3",
+    "front-matter": "^4.0.2",
+    "highlight.js": "^11.11.1",
+    "isomorphic-dompurify": "^3.21.0",
+    "marked": "^18.0.9"
+  }
+}

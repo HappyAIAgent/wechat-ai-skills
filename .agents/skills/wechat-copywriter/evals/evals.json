@@ -1,0 +1,23 @@
+{
+  "skill_name": "wechat-copywriter",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "仿写这篇博客 https://mp.weixin.qq.com/s/example-article-1 用生动科普风格",
+      "expected_output": "成功抓取博客内容和图片，提取关键概念，补充官网资料，按生动科普风格重写文章，输出 Markdown 和 HTML 文件到 00-草稿/ 目录",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "帮我把这篇技术文章改写成公众号文章 https://tech-blog.example.com/post/123 风格用技术干货",
+      "expected_output": "抓取技术博客，识别技术概念和代码示例，按技术干货风格重写，保留代码块，生成可发布的公众号图文",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "参考这篇行业分析文章写一篇公众号文章 https://industry.example.com/analysis 深度分析风格，不要去AI味",
+      "expected_output": "抓取行业分析文章，补充官网权威数据，按深度分析风格重写，跳过去AI味步骤，输出完整图文",
+      "files": []
+    }
+  ]
+}

@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>文本统计</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0b1020;
+        --panel: rgba(255, 255, 255, 0.06);
+        --panel-2: rgba(255, 255, 255, 0.08);
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.68);
+        --accent: #7c5cff;
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f7fb;
+          --panel: rgba(0, 0, 0, 0.04);
+          --panel-2: rgba(0, 0, 0, 0.06);
+          --border: rgba(0, 0, 0, 0.1);
+          --text: rgba(0, 0, 0, 0.88);
+          --muted: rgba(0, 0, 0, 0.6);
+          --accent: #5a3fff;
+          --shadow: 0 12px 40px rgba(24, 24, 40, 0.12);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "PingFang SC",
+          "Hiragino Sans GB",
+          "Microsoft YaHei",
+          "Noto Sans CJK SC",
+          Arial,
+          "Apple Color Emoji",
+          "Segoe UI Emoji";
+        background:
+          radial-gradient(1200px 600px at 10% 0%, rgba(124, 92, 255, 0.25), transparent 50%),
+          radial-gradient(900px 500px at 80% 20%, rgba(0, 195, 255, 0.16), transparent 55%),
+          radial-gradient(800px 420px at 50% 100%, rgba(255, 120, 120, 0.12), transparent 55%),
+          var(--bg);
+        color: var(--text);
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 28px 18px 44px;
+      }
+
+      header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        font-size: 22px;
+        margin: 0;
+        letter-spacing: 0.2px;
+      }
+
+      .subtitle {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, var(--panel-2), var(--panel));
+        color: var(--text);
+        padding: 9px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 13px;
+        transition:
+          transform 0.08s ease,
+          border-color 0.15s ease,
+          background 0.15s ease;
+      }
+
+      button:hover {
+        border-color: rgba(124, 92, 255, 0.55);
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+
+      button.primary {
+        border-color: rgba(124, 92, 255, 0.6);
+        background: linear-gradient(180deg, rgba(124, 92, 255, 0.35), rgba(124, 92, 255, 0.18));
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1.25fr 0.75fr;
+        gap: 14px;
+      }
+
+      @media (max-width: 900px) {
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .actions {
+          justify-content: flex-start;
+        }
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, var(--panel), rgba(255, 255, 255, 0.02));
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .panel-header {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .panel-title {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 380px;
+        padding: 14px;
+        border: 0;
+        outline: none;
+        background: transparent;
+        color: var(--text);
+        resize: vertical;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      textarea::placeholder {
+        color: rgba(255, 255, 255, 0.45);
+      }
+
+      @media (prefers-color-scheme: light) {
+        textarea::placeholder {
+          color: rgba(0, 0, 0, 0.35);
+        }
+      }
+
+      .stats {
+        padding: 12px 14px 14px;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .stat {
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+
+      .stat-label {
+        margin: 0 0 2px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .stat-value {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+        font-size: 18px;
+        letter-spacing: 0.2px;
+      }
+
+      .note {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .toast {
+        position: fixed;
+        inset: auto 16px 16px auto;
+        max-width: min(520px, calc(100vw - 32px));
+        border: 1px solid var(--border);
+        background: rgba(15, 18, 32, 0.72);
+        backdrop-filter: blur(10px);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        font-size: 13px;
+        opacity: 0;
+        transform: translateY(6px);
+        pointer-events: none;
+        transition:
+          opacity 0.16s ease,
+          transform 0.16s ease;
+      }
+
+      @media (prefers-color-scheme: light) {
+        .toast {
+          background: rgba(255, 255, 255, 0.75);
+        }
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div>
+          <h1>文本统计</h1>
+          <p class="subtitle">粘贴/输入文本后自动统计：字符、汉字、单词、行、段落、UTF-8 字节。</p>
+        </div>
+        <div class="actions">
+          <button id="btn-copy" class="primary" type="button">复制统计</button>
+          <button id="btn-clear" type="button">清空</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="panel" aria-label="输入文本">
+          <div class="panel-header">
+            <p class="panel-title">文本</p>
+            <p class="panel-title" id="hint">实时统计</p>
+          </div>
+          <textarea
+            id="input"
+            spellcheck="false"
+            placeholder="在这里粘贴或输入文本…"
+            aria-label="文本输入框"
+          ></textarea>
+        </section>
+
+        <aside class="panel" aria-label="统计结果">
+          <div class="panel-header">
+            <p class="panel-title">统计结果</p>
+            <p class="panel-title" id="updated-at"></p>
+          </div>
+          <div class="stats">
+            <div class="stat-grid" role="list">
+              <div class="stat" role="listitem">
+                <p class="stat-label">字符数（含空白）</p>
+                <p class="stat-value" id="stat-chars-all">0</p>
+              </div>
+              <div class="stat" role="listitem">
+                <p class="stat-label">字符数（不含空白）</p>
+                <p class="stat-value" id="stat-chars-no-space">0</p>
+              </div>
+              <div class="stat" role="listitem">
+                <p class="stat-label">汉字数</p>
+                <p class="stat-value" id="stat-han">0</p>
+              </div>
+              <div class="stat" role="listitem">
+                <p class="stat-label">单词数（英文/数字）</p>
+                <p class="stat-value" id="stat-words">0</p>
+              </div>
+              <div class="stat" role="listitem">
+                <p class="stat-label">行数</p>
+                <p class="stat-value" id="stat-lines">0</p>
+              </div>
+              <div class="stat" role="listitem">
+                <p class="stat-label">段落数</p>
+                <p class="stat-value" id="stat-paragraphs">0</p>
+              </div>
+              <div class="stat" role="listitem">
+                <p class="stat-label">UTF-8 字节</p>
+                <p class="stat-value" id="stat-bytes">0</p>
+              </div>
+            </div>
+
+            <div class="note">
+              <div>说明：</div>
+              <div>1) “字符数”按 Unicode 码点统计（对常见中文/英文更贴近直觉）。</div>
+              <div>2) “单词数”仅统计英文/数字连续片段（适合英文写作粗略参考）。</div>
+            </div>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      const input = $("input");
+      const btnClear = $("btn-clear");
+      const btnCopy = $("btn-copy");
+      const updatedAt = $("updated-at");
+      const toast = $("toast");
+
+      const statCharsAll = $("stat-chars-all");
+      const statCharsNoSpace = $("stat-chars-no-space");
+      const statHan = $("stat-han");
+      const statWords = $("stat-words");
+      const statLines = $("stat-lines");
+      const statParagraphs = $("stat-paragraphs");
+      const statBytes = $("stat-bytes");
+
+      const formatNumber = (n) => new Intl.NumberFormat("zh-CN").format(n);
+
+      const normalizeNewlines = (text) => text.replace(/\r\n?/g, "\n");
+
+      const countCodePoints = (text) => Array.from(text).length;
+
+      const countHan = (text) => {
+        try {
+          return (text.match(/\p{Script=Han}/gu) || []).length;
+        } catch {
+          return (text.match(/[\u4E00-\u9FFF]/g) || []).length;
+        }
+      };
+
+      const countWords = (text) => {
+        const matches = text.match(/[A-Za-z0-9]+(?:'[A-Za-z0-9]+)*/g);
+        return matches ? matches.length : 0;
+      };
+
+      const countParagraphs = (text) =>
+        text
+          .split(/\n{2,}/)
+          .map((p) => p.trim())
+          .filter(Boolean).length;
+
+      const countUtf8Bytes = (text) => {
+        try {
+          return new TextEncoder().encode(text).length;
+        } catch {
+          return new Blob([text]).size;
+        }
+      };
+
+      let toastTimer = null;
+      const showToast = (message) => {
+        toast.textContent = message;
+        toast.classList.add("show");
+        if (toastTimer) window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => toast.classList.remove("show"), 1200);
+      };
+
+      const updateStats = () => {
+        const raw = input.value || "";
+        const text = normalizeNewlines(raw);
+
+        const charsAll = countCodePoints(text);
+        const charsNoSpace = countCodePoints(text.replace(/\s/gu, ""));
+        const han = countHan(text);
+        const words = countWords(text);
+        const lines = text.length ? text.split("\n").length : 0;
+        const paragraphs = text.trim().length ? countParagraphs(text) : 0;
+        const bytes = countUtf8Bytes(text);
+
+        statCharsAll.textContent = formatNumber(charsAll);
+        statCharsNoSpace.textContent = formatNumber(charsNoSpace);
+        statHan.textContent = formatNumber(han);
+        statWords.textContent = formatNumber(words);
+        statLines.textContent = formatNumber(lines);
+        statParagraphs.textContent = formatNumber(paragraphs);
+        statBytes.textContent = formatNumber(bytes);
+
+        const now = new Date();
+        updatedAt.textContent = `更新：${now.toLocaleTimeString("zh-CN", { hour12: false })}`;
+      };
+
+      btnClear.addEventListener("click", () => {
+        input.value = "";
+        input.focus();
+        updateStats();
+        showToast("已清空");
+      });
+
+      btnCopy.addEventListener("click", async () => {
+        const lines = [
+          `字符数（含空白）：${statCharsAll.textContent}`,
+          `字符数（不含空白）：${statCharsNoSpace.textContent}`,
+          `汉字数：${statHan.textContent}`,
+          `单词数（英文/数字）：${statWords.textContent}`,
+          `行数：${statLines.textContent}`,
+          `段落数：${statParagraphs.textContent}`,
+          `UTF-8 字节：${statBytes.textContent}`,
+        ];
+        const text = lines.join("\n");
+
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast("统计已复制到剪贴板");
+        } catch {
+          // 兼容 file:// 或禁用剪贴板权限的场景
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "true");
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          showToast("统计已复制");
+        }
+      });
+
+      input.addEventListener("input", updateStats);
+      updateStats();
+      input.focus();
+    </script>
+  </body>
+</html>
+

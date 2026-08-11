@@ -1,0 +1,20 @@
+{
+  "name": "@md/shared",
+  "type": "module",
+  "private": true,
+  "version": "2.1.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./configs": "./src/configs/index.ts",
+    "./configs/*": "./src/configs/*.ts",
+    "./constants": "./src/constants/index.ts",
+    "./constants/*": "./src/constants/*.ts",
+    "./types": "./src/types/index.ts",
+    "./types/*": "./src/types/*.ts",
+    "./utils": "./src/utils/index.ts",
+    "./utils/*": "./src/utils/*.ts"
+  },
+  "peerDependencies": {
+    "marked": ">=17"
+  }
+}

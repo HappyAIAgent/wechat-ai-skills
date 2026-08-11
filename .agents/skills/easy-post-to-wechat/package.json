@@ -1,0 +1,9 @@
+{
+  "name": "easy-post-to-wechat",
+  "type": "module",
+  "private": true,
+  "description": "发布公众号草稿（复用 easy-markdown-to-html 渲染 + 自包含微信 API）",
+  "dependencies": {
+    "juice": "^12.1.2"
+  }
+}

@@ -1,0 +1,27 @@
+.baoyu-skills/
+.vscode/
+
+node_modules/
+.DS_Store
+*.log
+.env
+.env.*
+
+# 生成文件夹
+image-cards/
+history-chatter/
+cover-image/
+.playwright-mcp/
+
+# 忽略 00-草稿/ 目录，保留作业草稿/ 目录
+/00-草稿/*
+!/00-草稿/作业草稿/
+
+# 忽略 01-文章/ 目录，20260318_一人企业 目录
+/01-文章/*
+!20260318_一人企业/
+
+# 忽略根目录下的图片文件，保留子目录中的图片
+/*.png
+/*.jpg
+/*.jpeg
