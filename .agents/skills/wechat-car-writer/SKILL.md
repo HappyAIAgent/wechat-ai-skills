@@ -25,11 +25,31 @@ metadata:
 
 - **参数**：汽车之家 `getParamConf`（seriesId 制，全品牌覆盖）——通用地基
 - **图片兜底**：汽车之家 `getpiclist`（全品牌覆盖），保证任何车型都有图
-- **官网增强**：`car-official.ts` 的厂商注册表是**可插拔增强**（已适配：比亚迪/小鹏/小米/蔚来/问界；理想/零跑等 SPA 官网无法脚本抓取，自动走新闻稿/汽车之家兜底），未注册厂商自动跳过官网采集，**不阻塞流程**
+- **官网增强**：`car-news-images.ts` 内置 30+ 厂商官网映射，支持 SPA 页面（通过 Chrome CDP 渲染），自动抓取官网高清无水印图片
 
-**官网无水印图是第一优先级**：已适配厂商优先抓官网图（权威、无平台水印）；官网抓不到时用新闻稿配图（无平台水印）→ 最后汽车之家兜底。
+**官网无水印图是第一优先级**：已适配厂商优先抓官网图（权威、无平台水印）→ 新闻稿配图（无平台水印）→ 汽车之家兜底。
 
-新增厂商官网适配 = 在 `car-official.ts` 注册表加一个适配器（复制现有适配器模式），**不影响主流程**。
+### 已适配官网（SPA 支持）
+
+| 分类 | 品牌 |
+|------|------|
+| 新势力 | 零跑、小鹏、蔚来、理想、哪吒、高合、极狐、飞凡、智己、阿维塔、极石、创维 |
+| 传统车企新能源 | 比亚迪、吉利、长城、哈弗、欧拉、岚图、极氪、银河、深蓝、启源 |
+| 合资/外资 | 特斯拉、宝马、奔驰、奥迪、大众、丰田、本田、日产 |
+| 其他 | 小米、华为、问界、仰望、方程豹 |
+
+### 自定义官网
+
+```bash
+# 自动匹配官网
+bun run car-news-images.ts "零跑A05" "00-草稿/零跑A05"
+
+# 自定义官网 URL
+bun run car-news-images.ts "理想L6" "00-草稿/理想L6" --official-url "https://www.lixiang.com/l6"
+
+# 跳过官网采集
+bun run car-news-images.ts "特斯拉Model 3" "00-草稿/Model3" --no-official
+```
 
 ## 工作流全景
 
@@ -39,7 +59,7 @@ metadata:
   ├─ Step 0: 参数解析 → 提取车型名、确认年份/版本、确定输出目录
   ├─ Step 1: 车型定位 → car-locate.ts 定位 seriesId（多候选时交互消歧）
   ├─ Step 2: 参数采集 → car-specs.ts --no-images 抓参数 → spec-data.json
-  ├─ Step 2.5: 官方配图 → car-official.ts 官网优先（SSR）→ car-news-images.ts 新闻稿 → 汽车之家兜底
+  ├─ Step 2.5: 官方配图 → car-news-images.ts（官网优先 SPA 支持 → 新闻稿 → 汽车之家兜底）
   ├─ Step 3: 资料补充 → 搜索上市新闻/价格/权益/官方信息（交叉校验参数）
   ├─ Step 4: 图片处理 → webp转png（如有）+ 压缩（>500KB）+ 来源多样性检查
   ├─ Step 5: 写稿 → 按《汽车营销-写作风格.md》+ spec-data.json + sources.md 采用值生成
@@ -60,6 +80,8 @@ metadata:
 | 指定主题色 | `/wechat-car-writer 零跑A05 --color 活力橘` |
 | 仅生成不发布 | `/wechat-car-writer 零跑A05 --dry-run` |
 | 自动发布 | `/wechat-car-writer 零跑A05 --publish` |
+| 自定义官网 | `/wechat-car-writer 零跑A05 --official-url "https://www.leapmotor.com/a05"` |
+| 跳过官网 | `/wechat-car-writer 零跑A05 --no-official` |
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
@@ -69,6 +91,8 @@ metadata:
 | `--color <颜色>` | 主题色（11 种预设色或 hex） | `经典蓝` |
 | `--publish` | 跳过确认直接发布 | `false` |
 | `--dry-run` | 仅生成不发布 | `false` |
+| `--official-url <URL>` | 自定义官网 URL | 自动匹配 |
+| `--no-official` | 跳过官网图片采集 | `false` |
 
 ## 输出目录
 

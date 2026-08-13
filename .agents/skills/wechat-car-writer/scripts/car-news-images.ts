@@ -25,6 +25,7 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { createHash } from "crypto";
+import { execSync } from "child_process";
 
 // ─── 常量 ───────────────────────────────────────────────────────────────────────
 
@@ -91,8 +92,37 @@ const SINA_FILTER_KEYWORDS = [
   "avatar",
 ];
 
+// 排除的图片关键词（logo、图标、二维码等）
+const EXCLUDE_IMAGE_KEYWORDS = [
+  "logo",
+  "icon",
+  "qr",
+  "qrcode",
+  "二维码",
+  "分享",
+  "share",
+  "weibo",
+  "weixin",
+  "微信",
+  "微博",
+  "topbar",
+  "footer",
+  "header",
+  "nav",
+  "menu",
+  "placeholder",
+  "loading",
+  "blank",
+  "pixel",
+  "tracker",
+  "analytics",
+  "sprite",
+  "btn",
+  "button",
+];
+
 const MIN_IMAGE_SIZE = 50 * 1024; // <50KB 过滤缩略图/坏图
-const MAX_IMAGE_SIZE = 500 * 1024; // >500KB 需压缩
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // >10MB 跳过（异常大图）
 const DELAY_MS = 200; // 礼貌限速
 
 // ─── 类型 ───────────────────────────────────────────────────────────────────────
@@ -112,6 +142,39 @@ interface SearchResult {
 }
 
 // ─── 工具函数 ─────────────────────────────────────────────────────────────────────
+
+/** 检查图片 URL 是否应该被排除（logo、图标、二维码等） */
+function shouldExcludeImage(url: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  return EXCLUDE_IMAGE_KEYWORDS.some((keyword) => lowerUrl.includes(keyword));
+}
+
+/** 计算内容 hash（用于去重） */
+function contentHash(buffer: Buffer): string {
+  return createHash("md5").update(buffer).digest("hex");
+}
+
+/** 调用 baoyu-fetch 抓取官网页面并提取图片 */
+function fetchOfficialImages(url: string): string[] {
+  try {
+    console.log(`  抓取官网: ${url}`);
+    // Windows: 用 bun 直接执行 ts 文件，避免 shell 脚本兼容性问题
+    const cliPath = join(process.cwd(), ".agents/skills/baoyu-url-to-markdown/scripts/lib/cli.ts");
+    const result = execSync(
+      `bun "${cliPath}" "${url}" --format json`,
+      { encoding: "utf-8", timeout: 60000 }
+    );
+    const data = JSON.parse(result);
+    if (data.status === "ok" && data.media) {
+      return data.media
+        .filter((m: any) => m.kind === "image" && m.url)
+        .map((m: any) => m.url);
+    }
+  } catch (e) {
+    console.error(`  ✗ 官网抓取失败: ${(e as Error).message}`);
+  }
+  return [];
+}
 
 /** fetch 带超时与重试 */
 async function fetchWithRetry(
@@ -430,7 +493,7 @@ function generateSourcesMd(images: ImageEntry[], carName: string): string {
   let md = `# 图片来源\n\n`;
   md += `车型: ${carName}\n`;
   md += `采集时间: ${new Date().toISOString()}\n`;
-  md += `图片来源: 官方发布会通稿配图（新浪/IT之家/网易等）\n\n`;
+  md += `图片来源: 官方发布会通稿配图（官网/新浪/IT之家/网易等）\n\n`;
   md += `## 图片列表\n\n`;
   md += `| 文件 | 大小 | 来源 | 原文章 |\n`;
   md += `|------|------|------|--------|\n`;
@@ -488,15 +551,23 @@ function mergeImagesToSpecData(
 
 function printHelp(): void {
   console.log(`用法:
-  bun run car-news-images.ts "<车型名>" "<输出目录>" [--min N] [--no-fallback]
+  bun run car-news-images.ts "<车型名>" "<输出目录>" [options]
+
+选项:
+  --min N              最少图片数量（默认 12）
+  --no-fallback        不回退汽车之家
+  --official-url URL   自定义官网 URL（跳过自动匹配）
+  --no-official        跳过官网图片采集
 
 示例:
   bun run car-news-images.ts "零跑A05" "00-草稿/20260812_零跑A05上市"
   bun run car-news-images.ts "比亚迪海豹06GT" "00-草稿/20260813_海豹06GT" --min 15
+  bun run car-news-images.ts "理想L6" "00-草稿/20260813_理想L6" --official-url "https://www.lixiang.com/l6"
+  bun run car-news-images.ts "特斯拉Model 3" "00-草稿/20260813_Model3" --no-official
 
 说明:
-  从必应搜索新闻稿 → 解析配图 → 下载去重 → 记录来源。
-  不足 --min 张（默认12）时回退汽车之家 getpiclist 补齐。
+  图片采集优先级：官网 > 新闻稿 > 汽车之家回退。
+  官网支持 SPA 页面（通过 Chrome CDP 渲染）。
   输出 images/ + sources.md，同时更新 spec-data.json 的 images 数组。`);
 }
 
@@ -511,25 +582,117 @@ async function main(): Promise<void> {
   const outDir = args[1];
   let minImages = 12;
   const noFallback = args.includes("--no-fallback");
+  const noOfficial = args.includes("--no-official");
 
   const minIdx = args.indexOf("--min");
   if (minIdx > 0 && args[minIdx + 1]) minImages = Number(args[minIdx + 1]) || 12;
+
+  // 自定义官网 URL
+  let customOfficialUrl = "";
+  const officialUrlIdx = args.indexOf("--official-url");
+  if (officialUrlIdx > 0 && args[officialUrlIdx + 1]) {
+    customOfficialUrl = args[officialUrlIdx + 1];
+  }
 
   mkdirSync(outDir, { recursive: true });
 
   console.log(`🚗 车型: ${carName}`);
   console.log(`📁 输出: ${outDir}`);
-  console.log(`🎯 最少图片: ${minImages} 张\n`);
+  console.log(`🎯 最少图片: ${minImages} 张`);
+  if (noOfficial) console.log(`⚠️  跳过官网图片采集`);
+  if (customOfficialUrl) console.log(`🌐 自定义官网: ${customOfficialUrl}`);
+  console.log("");
 
-  // 1. 必应搜索（多关键词合并，提高新闻稿命中率）
+  // 0. 官网图片采集（可选，优先级最高）
+  const allImageUrls = new Set<string>();
+  const imageToArticle = new Map<string, string>();
+  const imageToSource = new Map<string, string>();
+
+  // 常见厂商官网 URL 映射（覆盖主流品牌）
+  const OFFICIAL_SITES: Record<string, string> = {
+    // 新势力
+    "零跑": "https://www.leapmotor.com/",
+    "小鹏": "https://www.xiaopeng.com/",
+    "蔚来": "https://www.nio.cn/",
+    "理想": "https://www.lixiang.com/",
+    "哪吒": "https://www.netaauto.com/",
+    "高合": "https://www.hiPhi.com/",
+    "极狐": "https://www.arcfox.com/",
+    "飞凡": "https://www.risingauto.com/",
+    "智己": "https://www.im-motors.com/",
+    "阿维塔": "https://www.avatr.com/",
+    "极石": "https://www.rox.com/",
+    "创维": "https://www.skyworthauto.com/",
+    
+    // 传统车企新能源
+    "比亚迪": "https://www.byd.com/cn",
+    "吉利": "https://www.geely.com/",
+    "长城": "https://www.gwm.com.cn/",
+    "哈弗": "https://www.haval.com.cn/",
+    "欧拉": "https://www.oravalt.com/",
+    "岚图": "https://www.voyah.com.cn/",
+    "极氪": "https://www.zeekrlife.com/",
+    "银河": "https://www.geelygalaxy.com/",
+    "深蓝": "https://www.deepal.com.cn/",
+    "启源": "https://www.qiyuanauto.com/",
+    
+    // 合资/外资
+    "特斯拉": "https://www.tesla.cn/",
+    "宝马": "https://www.bmw.com.cn/",
+    "奔驰": "https://www.mercedes-benz.com.cn/",
+    "奥迪": "https://www.audi.cn/",
+    "大众": "https://www.volkswagen.com.cn/",
+    "丰田": "https://www.toyota.com.cn/",
+    "本田": "https://www.honda.com.cn/",
+    "日产": "https://www.nissan.com.cn/",
+    
+    // 其他
+    "小米": "https://www.xiaomiev.com/",
+    "华为": "https://www.hihonor.com/",
+    "问界": "https://www.aitomotors.com/",
+    "仰望": "https://www.yangwangauto.com/",
+    "方程豹": "https://www.fangchengbao.com/",
+  };
+
+  // 官网图片采集
+  let officialUrl = customOfficialUrl;
+  if (!noOfficial && !officialUrl) {
+    // 尝试匹配厂商官网
+    for (const [brand, url] of Object.entries(OFFICIAL_SITES)) {
+      if (carName.includes(brand)) {
+        officialUrl = url;
+        break;
+      }
+    }
+  }
+
+  if (!noOfficial && officialUrl) {
+    console.log(`\n🏭 官网图片采集: ${officialUrl}`);
+    const officialImages = fetchOfficialImages(officialUrl);
+    console.log(`  解析到 ${officialImages.length} 张官网配图`);
+    
+    for (const img of officialImages) {
+      if (!allImageUrls.has(img)) {
+        allImageUrls.add(img);
+        imageToArticle.set(img, officialUrl);
+        imageToSource.set(img, "官网");
+      }
+    }
+  } else if (noOfficial) {
+    console.log(`\n⚠️  已跳过官网图片采集`);
+  } else {
+    console.log(`\nℹ️  未找到匹配的官网，请使用 --official-url 指定`);
+  }
+
+  // 1. 必应搜索新闻稿（多关键词合并，提高新闻稿命中率）
   const queries = [`"${carName}" 上市`, `"${carName}" 价格 配置`, `"${carName}" 新车发布`];
-  const seenUrls = new Set<string>();
+  const seenSearchUrls = new Set<string>();
   const results: SearchResult[] = [];
   for (const q of queries) {
     const r = await searchBing(q);
     for (const item of r) {
-      if (!seenUrls.has(item.url)) {
-        seenUrls.add(item.url);
+      if (!seenSearchUrls.has(item.url)) {
+        seenSearchUrls.add(item.url);
         results.push(item);
       }
     }
@@ -541,9 +704,6 @@ async function main(): Promise<void> {
   }
 
   // 2. 抓取文章页面 → 解析配图
-  const allImageUrls = new Set<string>();
-  const imageToArticle = new Map<string, string>();
-  const imageToSource = new Map<string, string>();
 
   for (const result of results.slice(0, 5)) {
     const domain = extractDomain(result.url);
@@ -580,15 +740,24 @@ async function main(): Promise<void> {
   console.log(`\n📊 共发现 ${allImageUrls.size} 张去重配图`);
 
   // 3. 下载新闻稿配图
+  const imgDir = join(outDir, "images");
+  mkdirSync(imgDir, { recursive: true });
   const newsImages: ImageEntry[] = [];
-  const seenHashes = new Set<string>();
+  const seenContentHashes = new Set<string>(); // 内容 hash 去重
+  const seenUrls = new Set<string>(); // URL 去重
 
   for (const url of allImageUrls) {
     if (newsImages.length >= minImages * 2) break; // 多下载一些，后面有过滤
 
-    const hash = urlHash(url);
-    if (seenHashes.has(hash)) continue;
-    seenHashes.add(hash);
+    // URL 去重
+    if (seenUrls.has(url)) continue;
+    seenUrls.add(url);
+
+    // 排除 logo、图标、二维码等
+    if (shouldExcludeImage(url)) {
+      console.log(`  ⤬ 排除 ${url.substring(0, 50)}... (包含排除关键词)`);
+      continue;
+    }
 
     const source = imageToSource.get(url) || "未知";
     const article = imageToArticle.get(url) || "";
@@ -599,27 +768,46 @@ async function main(): Promise<void> {
       if (fullUrl.startsWith("//")) fullUrl = "https:" + fullUrl;
 
       const r = await fetchWithRetry(fullUrl, { "User-Agent": HEADERS["User-Agent"] }, 20000, 2);
-      const buf = await compressIfNeeded(Buffer.from(await r.arrayBuffer()));
+      const buf = Buffer.from(await r.arrayBuffer());
 
+      // 内容 hash 去重（防止同一张图片从不同 URL 下载）
+      const contentMd5 = contentHash(buf);
+      if (seenContentHashes.has(contentMd5)) {
+        console.log(`  ⤬ 跳过 ${url.substring(0, 50)}... (内容重复)`);
+        await sleep(DELAY_MS);
+        continue;
+      }
+      seenContentHashes.add(contentMd5);
+
+      // 大小过滤
       if (buf.byteLength < MIN_IMAGE_SIZE) {
         console.log(`  ⤬ 跳过 ${url.substring(0, 50)}... (${(buf.byteLength / 1024).toFixed(0)}KB < ${MIN_IMAGE_SIZE / 1024}KB)`);
         await sleep(DELAY_MS);
         continue;
       }
 
+      if (buf.byteLength > MAX_IMAGE_SIZE) {
+        console.log(`  ⤬ 跳过 ${url.substring(0, 50)}... (${(buf.byteLength / 1024 / 1024).toFixed(1)}MB > ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
+        await sleep(DELAY_MS);
+        continue;
+      }
+
+      // 压缩 if needed
+      const compressedBuf = await compressIfNeeded(buf);
+
       const ext = (url.match(/\.(jpg|jpeg|png|webp)/i)?.[1] || "jpg").toLowerCase();
       const fname = `news-${String(newsImages.length + 1).padStart(2, "0")}.${ext === "jpeg" ? "jpg" : ext}`;
-      writeFileSync(join(outDir, "images", fname), buf);
+      writeFileSync(join(outDir, "images", fname), compressedBuf);
 
       newsImages.push({
         file: fname,
         url,
         source,
         article,
-        size: buf.byteLength,
+        size: compressedBuf.byteLength,
       });
 
-      console.log(`  ✓ ${fname} (${(buf.byteLength / 1024).toFixed(0)}KB) [${source}]`);
+      console.log(`  ✓ ${fname} (${(compressedBuf.byteLength / 1024).toFixed(0)}KB) [${source}]`);
     } catch (e) {
       console.error(`  ✗ 下载失败 ${url.substring(0, 50)}...: ${(e as Error).message}`);
     }
