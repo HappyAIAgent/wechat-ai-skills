@@ -85,6 +85,7 @@ ai-wechat/
 |---------|---------|---------|
 | 观点原创 | `02-资源/写作风格.md` | 给了链接/素材/选题，让我写观点文章 |
 | 访谈重播 | `02-资源/播客现场重播员-写作风格.md` | 给了字幕文件/播客链接/访谈视频 |
+| 汽车营销 | `02-资源/汽车营销-写作风格.md` | 给了车型名称，让我写汽车营销/车评/新车上市文章 |
 
 - 个人素材库：`02-资源/素材库.md`（写文章时搜真实素材；**每写完一篇提炼一条**追加进去）
 - 选题库：`02-资源/选题库.md`（写作全过程保持状态同步）
@@ -147,6 +148,7 @@ Claude Code 通过扫描 `.claude/skills/<技能名>/SKILL.md` 来发现技能�
 | `wechat-auto-creator` | 编排器 | 需要从一句话选题自动走完公众号写作完整流程（写稿→配图→发布→归档） | `easy-markdown-to-html` + `easy-post-to-wechat` + 配图/格式化/去AI味系列 |
 | `wechat-copywriter` | 编排器 | 需要**仿写**博客/网页链接成公众号文章（抓取→补充官网资料→按指定文风重写→配图→发布），9 种文风可选 | `baoyu-url-to-markdown` + `easy-markdown-to-html` + `easy-post-to-wechat` + `humanizer-zh` 等 |
 | `wechat-article-writer` | 纯提示词 | 需要写公众号文章（搜索资料→撰写→爆款标题→排版优化），不依赖图片素材 | 纯提示词，无脚本依赖 |
+| `wechat-car-writer` | 编排器 | 需要根据车型名称自动生成汽车营销公众号文章（定位车型→采集真实参数→**官网官方图优先**→车评风格写稿→去AI味→发布），参数真实+交叉校验，合规严格 | `car-locate.ts` + `car-specs.ts` + `car-official.ts` + `cover.ts` + `easy-markdown-to-html` + `easy-post-to-wechat` + `humanizer-zh` 等 |
 | `wechat-xhs-post` | 编排器 | 需要把已有小红书图文素材（`image-cards/`）复用成公众号长文（扩写→去AI味→WebP转PNG→发布） | `easy-markdown-to-html` + `easy-post-to-wechat` + `baoyu-compress-image` + `humanizer-zh` 等 |
 | `xiaohongshu-ops` | 编排器 | 小红书运营相关操作（发布、管理） | 见其 SKILL.md |
 
