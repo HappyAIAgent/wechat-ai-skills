@@ -14,7 +14,8 @@ crawl4ai-fetch.py — 官网图片采集（crawl4ai 滚动渲染）
   或 {"status":"error","message":"..."}
 
 依赖:
-  crawl4ai（已安装到项目 .venv）——首次需安装浏览器:
+  crawl4ai（自动准备：car-news-images.ts 的 ensurePythonEnv() 会在无 .venv 时自动创建、
+  未装 crawl4ai 时自动 pip install crawl4ai）——首次需安装浏览器:
   python -m playwright install chromium  或使用系统 Chrome（chrome_channel="chrome"）
 """
 import asyncio

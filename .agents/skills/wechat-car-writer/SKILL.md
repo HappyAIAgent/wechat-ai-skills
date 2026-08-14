@@ -62,7 +62,7 @@ bun run car-news-images.ts "特斯拉Model 3" "00-草稿/Model3" --no-official
   ├─ Step 2.5: 官方配图 → car-news-images.ts（官网优先 SPA 支持 → 新闻稿 → 汽车之家兜底）
   ├─ Step 3: 资料补充 → 搜索上市新闻/价格/权益/官方信息（交叉校验参数）
   ├─ Step 4: 图片处理 → webp转png（如有）+ 压缩（>500KB）+ 来源多样性检查
-  ├─ Step 5: 写稿 → 按《汽车营销-写作风格.md》+ spec-data.json + sources.md 采用值生成
+  ├─ Step 5: 写稿 → 按 references/汽车营销-写作风格.md + spec-data.json + sources.md 采用值生成
   ├─ Step 6: 去AI味 → humanizer-zh
   ├─ Step 7: 封面 → cover.ts 实车图裁剪 + 标题文字
   ├─ Step 8: 排版发布 → easy-markdown-to-html + easy-post-to-wechat
@@ -116,9 +116,9 @@ bun run car-news-images.ts "特斯拉Model 3" "00-草稿/Model3" --no-official
 - 输出目录 `00-草稿/{YYYYMMDD_标题简称}/`（标题简称取车型名，如 `零跑A05上市`）
 
 同时读取：
-- `02-资源/汽车营销-写作风格.md` — 车评文风规范（必读）
-- `02-资源/选题库.md` — 检查是否已有此选题
-- `02-资源/素材库.md` — 搜索相关素材
+- `references/汽车营销-写作风格.md` — 车评文风规范（必读，本 skill 自带，见 `references/`）
+- `02-资源/选题库.md` — 检查是否已有此选题（可选，属宿主项目，非本 skill 自带）
+- `02-资源/素材库.md` — 搜索相关素材（可选，属宿主项目，非本 skill 自带）
 
 ### Step 1: 车型定位
 
@@ -163,7 +163,7 @@ bun run .agents/skills/wechat-car-writer/scripts/car-news-images.ts "<车型名>
 
 - **官网素材足够即停**：官网图下载成功 ≥ `--official-min` 张（默认 **5 张**）时，视为官网素材足够，**自动跳过新闻稿采集和汽车之家回退**——只用官网无水印图，不混入其他来源（实测：理想L8官网185张图直接全量使用，零跑官网15张达标即停）
 - **场景图自动过滤**：`car-news-images.ts` 内置 `SCENE_IMAGE_KEYWORDS`（driving/turing/safety/acceleration/road/charging 等路径关键词），自动排除官网营销素材里的"车+风景"场景图（山路驾驶、城市道路、加速测试等），只保留实车图（外观/内饰/空间/座舱）。实测 AITO官网 16 张图分类准确率 100%，汽车之家图库不受影响
-- **滚动渲染（懒加载 SPA 关键）**：`car-news-images.ts` 官网采集四级回退——① HTML 内嵌 JSON（理想等，无需浏览器）→ ② **Crawlee+PuppeteerCrawler 滚动渲染（主方案**，`crawlee-fetch.ts`，实测 C16 31 张/理想i8 27 张，Puppeteer 用 `channel:'chrome'` 自动定位系统 Chrome，bun 直接运行 TS，生态契合）→ ③ crawl4ai `scan_full_page` 滚动渲染（备选，自带图片评分，实测 C16 29 张）→ ④ baoyu-fetch CDP（最后兜底，不滚动只能拿首屏）。crawlee+puppeteer 已装到项目 node_modules，crawl4ai 已装到 `.venv`
+- **滚动渲染（懒加载 SPA 关键）**：`car-news-images.ts` 官网采集四级回退——① HTML 内嵌 JSON（理想等，无需浏览器）→ ② **Crawlee+PuppeteerCrawler 滚动渲染（主方案**，`crawlee-fetch.ts`，实测 C16 31 张/理想i8 27 张，Puppeteer 用 `channel:'chrome'` 自动定位系统 Chrome，bun 直接运行 TS，生态契合）→ ③ crawl4ai `scan_full_page` 滚动渲染（备选，自带图片评分，实测 C16 29 张）→ ④ baoyu-fetch CDP（最后兜底，不滚动只能拿首屏）。crawlee+puppeteer 已装到项目 node_modules，crawl4ai 已装到 `.venv`（`car-news-images.ts` 的 `ensurePythonEnv()` 会在无 `.venv` 时自动创建、未装 crawl4ai 时自动 pip 安装，回退链路开箱即用）
 - **官网不足时**：官网 < 5 张 → 走新闻稿补充；官网+新闻稿仍不足 `--min` → 汽车之家兜底
 - **优先级**：官网（内嵌 JSON 首选 + CDP 回退，最权威无水印）> 新闻稿通稿配图（无平台水印）> 汽车之家（兜底）
 - **输出**：
@@ -221,7 +221,7 @@ bun run .agents/skills/wechat-car-writer/scripts/car-news-images.ts "<车型名>
 
 ### Step 5: 写稿
 
-**读取 `02-资源/汽车营销-写作风格.md`**，按其中规范写作：
+**读取 `references/汽车营销-写作风格.md`**（本 skill 自带，见 `references/` 目录），按其中规范写作：
 - 标题：车型 + 上市动作 + 价格锚点 + 1-2 个核心卖点
 - **正文不写开头 H1**：公众号推文标题由发布环节 `--title` 单独控制，正文开头不要再写 `# 标题`（避免推文标题与正文大标题重复）。`article.md` 第一行直接是正文段落或 `##` 小节标题
 - 结构：直入开头 → 价格 → 定位 → 核心参数（表格+解读）→ 权益 → 结尾

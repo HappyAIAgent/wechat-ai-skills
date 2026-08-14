@@ -126,6 +126,56 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // >10MB 跳过（异常大图）
 const TARGET_IMAGE_SIZE = 500 * 1024; // 下载后压缩目标：>500KB 即压缩（微信加载要求）
 const DELAY_MS = 200; // 礼貌限速
 
+// ─── Python venv / crawl4ai 环境准备（方案 D 用） ────────────────────────────────
+// 目标：无 venv 自动创建，未装 crawl4ai 自动 pip 安装，让回退链路开箱即用。
+const PY_SCRIPT = join(process.cwd(), ".agents/skills/wechat-car-writer/scripts/crawl4ai-fetch.py");
+
+/** 探测 venv python 路径（Windows: .venv/Scripts/python.exe，macOS/Linux: .venv/bin/python） */
+function venvPython(): string | null {
+  const candidates =
+    process.platform === "win32"
+      ? [join(process.cwd(), ".venv/Scripts/python.exe")]
+      : [join(process.cwd(), ".venv/bin/python")];
+  for (const p of candidates) if (existsSync(p)) return p;
+  return null;
+}
+
+/** 确保 crawl4ai 可用：返回可执行的 python 路径；失败抛错（由调用方 catch 后走下一级回退） */
+function ensurePythonEnv(): string {
+  // 1) 定位 python：优先项目 venv，没有则用系统 python
+  let pythonBin = venvPython() ?? "python";
+
+  // 2) venv 不存在 → 自动创建（用系统 python 建 venv）
+  if (!venvPython()) {
+    console.log("  ⚙️ 未检测到项目 .venv，正在创建虚拟环境…");
+    execSync(`"${pythonBin}" -m venv "${join(process.cwd(), ".venv")}"`, {
+      encoding: "utf-8",
+      timeout: 120000,
+      stdio: ["ignore", "inherit", "inherit"],
+    });
+    pythonBin = venvPython()!; // 创建成功后必存在
+    if (!pythonBin) throw new Error("venv 创建失败：未找到 .venv/Scripts/python.exe");
+  }
+
+  // 3) crawl4ai 未安装 → pip 安装
+  try {
+    execSync(`"${pythonBin}" -c "import crawl4ai"`, {
+      encoding: "utf-8",
+      timeout: 30000,
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+  } catch {
+    console.log("  ⚙️ 未检测到 crawl4ai，正在安装（pip install crawl4ai，可能需数分钟）…");
+    execSync(`"${pythonBin}" -m pip install crawl4ai`, {
+      encoding: "utf-8",
+      timeout: 600000, // 10 分钟：crawl4ai 依赖较多
+      stdio: ["ignore", "inherit", "inherit"],
+    });
+  }
+
+  return pythonBin;
+}
+
 // 场景图/功能演示图排除关键词（URL 路径中出现即视为"非实车图"）
 //
 // 车企官网（尤其 AITO/问界、零跑等）的营销素材里混有大量"车+风景"场景图：
@@ -402,14 +452,13 @@ async function fetchOfficialImages(url: string): Promise<OfficialImage[]> {
   // ── 方案 D：再回退 crawl4ai（滚动渲染，备选） ──
   // Crawlee+Puppeteer 失败或无图时，用 crawl4ai 的 scan_full_page 滚动渲染。
   // crawl4ai 自带图片评分（score），可过滤低质图；失败时才走 baoyu-fetch。
+  // 环境自动准备：无 .venv 自动创建，未装 crawl4ai 自动 pip 安装（ensurePythonEnv）。
   if (urls.size === 0) {
     try {
       console.log(`  回退 crawl4ai 滚动渲染: ${url}`);
-      const pyScript = join(process.cwd(), ".agents/skills/wechat-car-writer/scripts/crawl4ai-fetch.py");
-      const venvPy = join(process.cwd(), ".venv/Scripts/python.exe");
-      const pythonBin = existsSync(venvPy) ? venvPy : "python";
+      const pythonBin = ensurePythonEnv();
       const result = execSync(
-        `"${pythonBin}" "${pyScript}" "${url}" --min-score 3`,
+        `"${pythonBin}" "${PY_SCRIPT}" "${url}" --min-score 3`,
         { encoding: "utf-8", timeout: 120000 }
       );
       // stdout 为 JSON（脚本日志走 stderr，execSync 默认捕获 stdout）
