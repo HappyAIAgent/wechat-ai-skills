@@ -123,7 +123,86 @@ const EXCLUDE_IMAGE_KEYWORDS = [
 
 const MIN_IMAGE_SIZE = 50 * 1024; // <50KB 过滤缩略图/坏图
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // >10MB 跳过（异常大图）
+const TARGET_IMAGE_SIZE = 500 * 1024; // 下载后压缩目标：>500KB 即压缩（微信加载要求）
 const DELAY_MS = 200; // 礼貌限速
+
+// 场景图/功能演示图排除关键词（URL 路径中出现即视为"非实车图"）
+//
+// 车企官网（尤其 AITO/问界、零跑等）的营销素材里混有大量"车+风景"场景图：
+// 山路驾驶、城市道路、雪地越野、充电演示、加速测试等。这类图车占比小、
+// 以风景/场景为主体，不适合作为车型配图。而实车图（外观/内饰/细节/颜色）
+// 通常路径含 exterior/interior/space/cockpit/hero/overview 等。
+//
+// 注意：这里只用"排除式"关键词（明确是场景/功能演示），不用"保留式"，
+// 因为各官网 URL 命名差异大（理想用 hash、AITO 用语义路径），
+// 只排除明确的场景特征词，避免误杀不同站点的实车图。
+const SCENE_IMAGE_KEYWORDS = [
+  // 驾驶/道路场景
+  "driving",
+  "driver",
+  "drive-",
+  "road",
+  "highway",
+  "freeway",
+  "city-drive",
+  "urban",
+  "street",
+  "traffic",
+  "overtaking",
+  "lane",
+  // 越野/地形场景
+  "offroad",
+  "off-road",
+  "terrain",
+  "mountain",
+  "snow",
+  "desert",
+  "mud",
+  "gravel",
+  "trail",
+  // 功能演示/测试
+  "acceleration",
+  "0-100",
+  "braking",
+  "brake",
+  "test",
+  "testing",
+  "range-extension",
+  "battery-life",
+  "charging",
+  "charge-",
+  "charging-station",
+  "energy",
+  // 智驾/安全演示
+  "turing",
+  "ads-",
+  "ads4",
+  "safety",
+  "collision",
+  "aeb",
+  "parking",
+  "valet",
+  "nca",
+  "noa",
+  "navigation",
+  // 场景/背景图
+  "landscape",
+  "scenery",
+  "scene",
+  "scenic",
+  "background-scene",
+  "camping",
+  "travel",
+  "trip",
+  "family-life",
+  "lifestyle",
+];
+
+/** 检查图片 URL 是否为场景图/风景图（应排除，非实车图） */
+function shouldExcludeSceneImage(url: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  return SCENE_IMAGE_KEYWORDS.some((keyword) => lowerUrl.includes(keyword));
+}
 
 // ─── 类型 ───────────────────────────────────────────────────────────────────────
 
@@ -133,6 +212,7 @@ interface ImageEntry {
   source: string; // 媒体名（新浪/IT之家/网易）
   article: string; // 原文章链接
   size: number;
+  meta?: { alt: string; headings: string[]; nearbyText: string }; // 官网图语义（图注用）
 }
 
 interface SearchResult {
@@ -154,26 +234,218 @@ function contentHash(buffer: Buffer): string {
   return createHash("md5").update(buffer).digest("hex");
 }
 
-/** 调用 baoyu-fetch 抓取官网页面并提取图片 */
-function fetchOfficialImages(url: string): string[] {
-  try {
-    console.log(`  抓取官网: ${url}`);
-    // Windows: 用 bun 直接执行 ts 文件，避免 shell 脚本兼容性问题
-    const cliPath = join(process.cwd(), ".agents/skills/baoyu-url-to-markdown/scripts/lib/cli.ts");
-    const result = execSync(
-      `bun "${cliPath}" "${url}" --format json`,
-      { encoding: "utf-8", timeout: 60000 }
-    );
-    const data = JSON.parse(result);
-    if (data.status === "ok" && data.media) {
-      return data.media
-        .filter((m: any) => m.kind === "image" && m.url)
-        .map((m: any) => m.url);
-    }
-  } catch (e) {
-    console.error(`  ✗ 官网抓取失败: ${(e as Error).message}`);
+// ─── 官网图片采集（SPA 嵌入式 JSON 提取） ────────────────────────────────
+//
+// 很多车企官网（理想/零跑/小鹏等）是 SPA，车辆大图并不出现在渲染后的
+// <img> 标签里，而是以内嵌 JSON 数据形式存在（如 ideal 的 lxCdnUrl 指向
+// 页面配置 JSON，内含全部章节组件和图片 URL）。直接抓 HTML 源码反而能拿到
+// 完整图片清单，且无需启动 Chrome。
+//
+// 提取策略（按优先级）：
+//   1. 抓官网 HTML 源码
+//   2. 扫描 HTML 中形如 lxCdnUrl/jsonUrl 的 .json 数据源 URL，下载并递归提取图片
+//   3. 扫描 HTML 内联 <script> 中的 JSON（__NEXT_DATA__ / window.__INITIAL_STATE__ 等）
+//   4. 回退 baoyu-fetch（Chrome CDP 渲染）提取 <img>
+
+/** 从任意文本中提取图片 URL（http(s)，jpeg/jpg/png/webp 结尾，可带查询串） */
+function extractImageUrlsFromText(text: string): string[] {
+  const urls: string[] = [];
+  // 匹配 "https://cdn.xxx/path/image.jpg?size=1" 或 /image.png（JSON 中带引号或裸文本）
+  const re = /https?:\/\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp)(?:\?[^\s"'<>\\]*)?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    urls.push(m[0]);
   }
-  return [];
+  return [...new Set(urls)];
+}
+
+/** 递归遍历 JSON 对象，收集所有图片 URL（保留路径层级去重） */
+function extractImageUrlsFromJson(node: unknown, out: Set<string>): void {
+  if (node == null) return;
+  if (typeof node === "string") {
+    for (const u of extractImageUrlsFromText(node)) out.add(u);
+    return;
+  }
+  if (Array.isArray(node)) {
+    for (const item of node) extractImageUrlsFromJson(item, out);
+    return;
+  }
+  if (typeof node === "object") {
+    for (const v of Object.values(node as Record<string, unknown>)) {
+      extractImageUrlsFromJson(v, out);
+    }
+  }
+}
+
+/** 从 HTML 中提取嵌入式 JSON 数据源 URL（lxCdnUrl/jsonUrl/__NEXT_DATA__ 等） */
+function extractEmbeddedJsonUrls(html: string): string[] {
+  const urls: string[] = [];
+  // 常见字段名：lxCdnUrl / jsonUrl / dataUrl / pageJsonUrl / pageDataUrl / __NEXT_DATA__
+  const keyRe = /"(?:lxCdnUrl|jsonUrl|dataUrl|pageJsonUrl|pageDataUrl|__NEXT_DATA__|__INITIAL_STATE__)"\s*:\s*"([^"]+\.json(?:[^"]*)?)"/gi;
+  let m: RegExpExecArray | null;
+  while ((m = keyRe.exec(html)) !== null) {
+    const u = m[1];
+    if (u.startsWith("http://") || u.startsWith("https://")) urls.push(u);
+    else if (u.startsWith("//")) urls.push("https:" + u);
+    else if (u.startsWith("/")) urls.push(u); // 相对路径，由调用方拼 base
+  }
+  return [...new Set(urls)];
+}
+
+/** 从 HTML 中提取内联 <script> JSON 块（__NEXT_DATA__ 等） */
+function extractInlineScriptJson(html: string): string[] {
+  const blocks: string[] = [];
+  // <script id="__NEXT_DATA__" type="application/json">{...}</script>
+  const re1 = /<script[^>]+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re1.exec(html)) !== null) blocks.push(m[1]);
+  // window.__INITIAL_STATE__ = {...}
+  const re2 = /window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\});/i;
+  const m2 = re2.exec(html);
+  if (m2) blocks.push(m2[1]);
+  return blocks;
+}
+
+/** 抓取官网 HTML 源码（普通 fetch，无需浏览器） */
+async function fetchOfficialHtml(url: string): Promise<string> {
+  const r = await fetchWithRetry(url, HEADERS, 30000, 2);
+  return await r.text();
+}
+
+/**
+ * 采集官网图片（增强版）
+ *
+ * 四级回退链（HTML 提取失败后逐级尝试）：
+ *   A. 抓 HTML 源码提取内嵌 JSON / 内联 script / img 标签（理想等站点，无需浏览器）
+ *   B. Crawlee + PuppeteerCrawler 滚动渲染（主方案，SPA 懒加载站点，bun 运行 TS）
+ *   C. crawl4ai 滚动渲染（备选，自带图片评分过滤）
+ *   D. baoyu-fetch Chrome CDP 渲染（最后兜底）
+ * 返回去重后的图片 URL 数组（每项带可选语义 meta，供图注使用）。
+ */
+type OfficialImage = { url: string; meta?: { alt: string; headings: string[]; nearbyText: string } };
+async function fetchOfficialImages(url: string): Promise<OfficialImage[]> {
+  const urls = new Set<string>();
+  const metaMap = new Map<string, OfficialImage["meta"]>();
+  const imgUrlRe = /https?:\/\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp)(?:\?[^\s"'<>\\]*)?/gi;
+
+  try {
+    // ── 方案 A：直接抓 HTML 源码 ──
+    console.log(`  抓取官网 HTML: ${url}`);
+    const html = await fetchOfficialHtml(url);
+
+    // A1: 提取嵌入式 .json 数据源并下载
+    const jsonUrls = extractEmbeddedJsonUrls(html);
+    for (const ju of jsonUrls) {
+      try {
+        const absUrl = ju.startsWith("http") ? ju : new URL(ju, url).toString();
+        const r = await fetchWithRetry(absUrl, HEADERS, 30000, 2);
+        const jsonText = await r.text();
+        extractImageUrlsFromJson(JSON.parse(jsonText), urls);
+        console.log(`    ✓ 数据源 JSON: ${absUrl.substring(0, 80)} → ${urls.size} 张图`);
+      } catch (e) {
+        console.error(`    ⤬ 数据源 JSON 解析失败: ${(e as Error).message}`);
+      }
+    }
+
+    // A2: 提取内联 <script> JSON
+    const inlineBlocks = extractInlineScriptJson(html);
+    for (const block of inlineBlocks) {
+      try {
+        extractImageUrlsFromJson(JSON.parse(block), urls);
+      } catch {
+        // 内联 JSON 可能不完整（截断），直接用正则捞图片 URL
+        let m: RegExpExecArray | null;
+        while ((m = imgUrlRe.exec(block)) !== null) urls.add(m[0]);
+      }
+    }
+
+    // A3: 直接扫描整个 HTML 的图片 URL（<img src> / CSS background / JSON 字符串）
+    let m: RegExpExecArray | null;
+    while ((m = imgUrlRe.exec(html)) !== null) urls.add(m[0]);
+
+    console.log(`  HTML 内嵌解析: ${urls.size} 张图`);
+  } catch (e) {
+    console.error(`  ✗ 官网 HTML 抓取失败: ${(e as Error).message}`);
+  }
+
+  // ── 方案 C：回退 Crawlee + PuppeteerCrawler（滚动渲染，主方案） ──
+  // 滚动触发懒加载是 SPA 车型页（零跑/小鹏等）拿到实车图的关键。
+  // Crawlee+Puppeteer 实测优于 crawl4ai（C16 31张 vs 29张，理想i8 27张 vs 6张），
+  // 且 Puppeteer 用 channel:'chrome' 自动定位系统 Chrome（无绝对路径），
+  // bun 可直接运行 TS，生态与项目（Bun/TS）契合。
+  if (urls.size === 0) {
+    try {
+      console.log(`  回退 Crawlee+Puppeteer 滚动渲染: ${url}`);
+      const tsScript = join(process.cwd(), ".agents/skills/wechat-car-writer/scripts/crawlee-fetch.ts");
+      const result = execSync(
+        `bun "${tsScript}" "${url}"`,
+        { encoding: "utf-8", timeout: 120000 }
+      );
+      const data = JSON.parse(result);
+      if (data.status === "ok" && data.images) {
+        for (const img of data.images) {
+          if (img.url) {
+            urls.add(img.url);
+            // 记录语义 meta（图注用，弥补模型不能读图）
+            if (img.meta && (img.meta.headings?.length > 0 || img.meta.nearbyText || img.meta.alt)) {
+              metaMap.set(img.url, img.meta);
+            }
+          }
+        }
+        console.log(`    crawlee-puppeteer: ${data.images.length} 张官网图`);
+      }
+    } catch (e) {
+      console.error(`  ✗ 官网 Crawlee+Puppeteer 抓取失败: ${(e as Error).message}`);
+    }
+  }
+
+  // ── 方案 D：再回退 crawl4ai（滚动渲染，备选） ──
+  // Crawlee+Puppeteer 失败或无图时，用 crawl4ai 的 scan_full_page 滚动渲染。
+  // crawl4ai 自带图片评分（score），可过滤低质图；失败时才走 baoyu-fetch。
+  if (urls.size === 0) {
+    try {
+      console.log(`  回退 crawl4ai 滚动渲染: ${url}`);
+      const pyScript = join(process.cwd(), ".agents/skills/wechat-car-writer/scripts/crawl4ai-fetch.py");
+      const venvPy = join(process.cwd(), ".venv/Scripts/python.exe");
+      const pythonBin = existsSync(venvPy) ? venvPy : "python";
+      const result = execSync(
+        `"${pythonBin}" "${pyScript}" "${url}" --min-score 3`,
+        { encoding: "utf-8", timeout: 120000 }
+      );
+      // stdout 为 JSON（脚本日志走 stderr，execSync 默认捕获 stdout）
+      const data = JSON.parse(result);
+      if (data.status === "ok" && data.images) {
+        for (const img of data.images) {
+          if (img.url) urls.add(img.url);
+        }
+        console.log(`    crawl4ai: ${data.images.length} 张官网图`);
+      }
+    } catch (e) {
+      console.error(`  ✗ 官网 crawl4ai 抓取失败: ${(e as Error).message}`);
+    }
+  }
+
+  // ── 方案 B：最后回退 baoyu-fetch（Chrome CDP 渲染） ──
+  if (urls.size === 0) {
+    try {
+      console.log(`  回退 Chrome CDP 渲染: ${url}`);
+      const cliPath = join(process.cwd(), ".agents/skills/baoyu-url-to-markdown/scripts/lib/cli.ts");
+      const result = execSync(
+        `bun "${cliPath}" "${url}" --format json`,
+        { encoding: "utf-8", timeout: 60000 }
+      );
+      const data = JSON.parse(result);
+      if (data.status === "ok" && data.media) {
+        for (const media of data.media) {
+          if (media.kind === "image" && media.url) urls.add(media.url);
+        }
+      }
+    } catch (e) {
+      console.error(`  ✗ 官网 CDP 抓取失败: ${(e as Error).message}`);
+    }
+  }
+
+  return [...urls].map((u) => ({ url: u, meta: metaMap.get(u) }));
 }
 
 /** fetch 带超时与重试 */
@@ -422,14 +694,23 @@ async function downloadImage(url: string): Promise<Buffer | null> {
 
 /** 大图压缩：>500KB 时 resize 到 1200 宽 + jpeg q80（公众号加载要求 <500KB） */
 async function compressIfNeeded(buf: Buffer): Promise<Buffer> {
-  if (buf.byteLength <= MAX_IMAGE_SIZE) return buf;
+  if (buf.byteLength <= TARGET_IMAGE_SIZE) return buf;
   try {
     const sharp = (await import("sharp")).default;
-    return await sharp(buf)
+    const compressed = await sharp(buf)
       .rotate()
       .resize({ width: 1200, withoutEnlargement: true })
       .jpeg({ quality: 80 })
       .toBuffer();
+    // 压缩后仍超 500KB 的进一步降质，确保达标（公众号加载）
+    if (compressed.byteLength > TARGET_IMAGE_SIZE) {
+      return await sharp(buf)
+        .rotate()
+        .resize({ width: 1000, withoutEnlargement: true })
+        .jpeg({ quality: 65 })
+        .toBuffer();
+    }
+    return compressed;
   } catch {
     return buf;
   }
@@ -495,15 +776,39 @@ function generateSourcesMd(images: ImageEntry[], carName: string): string {
   md += `采集时间: ${new Date().toISOString()}\n`;
   md += `图片来源: 官方发布会通稿配图（官网/新浪/IT之家/网易等）\n\n`;
   md += `## 图片列表\n\n`;
-  md += `| 文件 | 大小 | 来源 | 原文章 |\n`;
-  md += `|------|------|------|--------|\n`;
+  md += `| 文件 | 大小 | 来源 | 语义（官网区块标题） | 原文章/URL |\n`;
+  md += `|------|------|------|---------------------|-----------|\n`;
 
   for (const img of images) {
     const size = `${(img.size / 1024).toFixed(0)}KB`;
-    md += `| ${img.file} | ${size} | ${img.source} | ${img.article} |\n`;
+    const sem = img.meta?.headings?.length
+      ? img.meta.headings.slice(0, 2).join(" / ")
+      : (img.meta?.nearbyText || "").slice(0, 30) || "-";
+    const ref = img.article && !img.article.includes("http") && !img.article.startsWith("https://www.")
+      ? img.article
+      : img.url;
+    md += `| ${img.file} | ${size} | ${img.source} | ${sem} | ${ref} |\n`;
   }
 
   return md;
+}
+
+/** 写出 images-meta.json：file → URL + 语义（图注工作流用，弥补模型不能读图） */
+function writeImagesMeta(outDir: string, images: ImageEntry[]): void {
+  try {
+    const meta = images.map((img) => ({
+      file: img.file,
+      url: img.url,
+      source: img.source,
+      semantics: img.meta?.headings?.length ? img.meta.headings.slice(0, 3) : [],
+      nearbyText: img.meta?.nearbyText || "",
+      alt: img.meta?.alt || "",
+    }));
+    writeFileSync(join(outDir, "images-meta.json"), JSON.stringify({ generatedAt: new Date().toISOString(), images: meta }, null, 2));
+    console.log(`  ✓ 已生成 images-meta.json（${meta.length} 张图的语义信息，供图注使用）`);
+  } catch (e) {
+    console.error(`  ⚠ 生成 images-meta.json 失败: ${(e as Error).message}`);
+  }
 }
 
 /** 追加到 spec-data.json 的 images 数组（合并现有结构） */
@@ -554,7 +859,9 @@ function printHelp(): void {
   bun run car-news-images.ts "<车型名>" "<输出目录>" [options]
 
 选项:
-  --min N              最少图片数量（默认 12）
+  --min N              最少图片数量（默认 12；注意：实际下载上限 = N × 2，
+                       即 --min 12 会尝试下载最多 24 张。建议官网图源用 --min 15 拿满）
+  --official-min N     官网图达到 N 张即视为素材足够，跳过新闻稿与汽车之家（默认 5）
   --no-fallback        不回退汽车之家
   --official-url URL   自定义官网 URL（跳过自动匹配）
   --no-official        跳过官网图片采集
@@ -564,11 +871,18 @@ function printHelp(): void {
   bun run car-news-images.ts "比亚迪海豹06GT" "00-草稿/20260813_海豹06GT" --min 15
   bun run car-news-images.ts "理想L6" "00-草稿/20260813_理想L6" --official-url "https://www.lixiang.com/l6"
   bun run car-news-images.ts "特斯拉Model 3" "00-草稿/20260813_Model3" --no-official
+  bun run car-news-images.ts "理想L8" "00-草稿/20260813_理想L8" --official-min 3
 
 说明:
   图片采集优先级：官网 > 新闻稿 > 汽车之家回退。
-  官网支持 SPA 页面（通过 Chrome CDP 渲染）。
-  输出 images/ + sources.md，同时更新 spec-data.json 的 images 数组。`);
+  官网支持 SPA 页面：优先解析 HTML 内嵌 JSON（lxCdnUrl/__NEXT_DATA__ 等，
+  无需浏览器），失败再回退 Crawlee+Puppeteer 滚动渲染（主方案，同时提取
+  每张图的区块语义标题），再回退 crawl4ai，最后 baoyu-fetch CDP。
+  官网图下载成功 >= official-min 张时，只用官网素材（无水印），
+  自动跳过新闻稿采集与汽车之家回退。
+  下载时 >500KB 的图自动压缩（sharp，1200 宽 q80），保证公众号加载速度。
+  输出 images/ + sources.md（含 URL 与语义列）+ images-meta.json（图注用），
+  同时更新 spec-data.json 的 images 数组。`);
 }
 
 async function main(): Promise<void> {
@@ -581,11 +895,17 @@ async function main(): Promise<void> {
   const carName = args[0];
   const outDir = args[1];
   let minImages = 12;
+  let officialMin = 5;
   const noFallback = args.includes("--no-fallback");
   const noOfficial = args.includes("--no-official");
 
   const minIdx = args.indexOf("--min");
   if (minIdx > 0 && args[minIdx + 1]) minImages = Number(args[minIdx + 1]) || 12;
+
+  const officialMinIdx = args.indexOf("--official-min");
+  if (officialMinIdx > 0 && args[officialMinIdx + 1]) {
+    officialMin = Number(args[officialMinIdx + 1]) || 5;
+  }
 
   // 自定义官网 URL
   let customOfficialUrl = "";
@@ -599,14 +919,18 @@ async function main(): Promise<void> {
   console.log(`🚗 车型: ${carName}`);
   console.log(`📁 输出: ${outDir}`);
   console.log(`🎯 最少图片: ${minImages} 张`);
+  console.log(`🏭 官网素材阈值: ${officialMin} 张（官网图达标则跳过新闻稿/汽车之家）`);
   if (noOfficial) console.log(`⚠️  跳过官网图片采集`);
   if (customOfficialUrl) console.log(`🌐 自定义官网: ${customOfficialUrl}`);
   console.log("");
 
   // 0. 官网图片采集（可选，优先级最高）
-  const allImageUrls = new Set<string>();
-  const imageToArticle = new Map<string, string>();
-  const imageToSource = new Map<string, string>();
+const allImageUrls = new Set<string>();
+const imageToArticle = new Map<string, string>();
+const imageToSource = new Map<string, string>();
+const imageToMeta = new Map<string, { alt: string; headings: string[]; nearbyText: string }>();
+  // 官网图片 URL 集合（用于统计官网素材是否足够）
+  const officialUrls = new Set<string>();
 
   // 常见厂商官网 URL 映射（覆盖主流品牌）
   const OFFICIAL_SITES: Record<string, string> = {
@@ -648,8 +972,8 @@ async function main(): Promise<void> {
     
     // 其他
     "小米": "https://www.xiaomiev.com/",
-    "华为": "https://www.hihonor.com/",
-    "问界": "https://www.aitomotors.com/",
+    "问界": "https://aito.auto/",       // 赛力斯华为联合设计官网（aitomotors.com 为无效域名）
+    "华为": "https://hima.auto/",       // 鸿蒙智行官网（hihonor.com 是荣耀，非华为汽车）
     "仰望": "https://www.yangwangauto.com/",
     "方程豹": "https://www.fangchengbao.com/",
   };
@@ -668,14 +992,16 @@ async function main(): Promise<void> {
 
   if (!noOfficial && officialUrl) {
     console.log(`\n🏭 官网图片采集: ${officialUrl}`);
-    const officialImages = fetchOfficialImages(officialUrl);
+    const officialImages = await fetchOfficialImages(officialUrl);
     console.log(`  解析到 ${officialImages.length} 张官网配图`);
     
     for (const img of officialImages) {
-      if (!allImageUrls.has(img)) {
-        allImageUrls.add(img);
-        imageToArticle.set(img, officialUrl);
-        imageToSource.set(img, "官网");
+      if (!allImageUrls.has(img.url)) {
+        allImageUrls.add(img.url);
+        officialUrls.add(img.url);
+        imageToArticle.set(img.url, officialUrl);
+        imageToSource.set(img.url, "官网");
+        if (img.meta) imageToMeta.set(img.url, img.meta);
       }
     }
   } else if (noOfficial) {
@@ -684,69 +1010,85 @@ async function main(): Promise<void> {
     console.log(`\nℹ️  未找到匹配的官网，请使用 --official-url 指定`);
   }
 
-  // 1. 必应搜索新闻稿（多关键词合并，提高新闻稿命中率）
+  // 0.5 官网素材判定：官网图足够时跳过新闻稿（避免混入其他来源）
+  // 注意：这里判定的是"解析到的官网 URL 数"，下载阶段会再按实际成功数判定
+  const officialEnough = !noOfficial && officialUrls.size >= officialMin;
+  if (officialEnough) {
+    console.log(`\n✅ 官网配图 ${officialUrls.size} 张 ≥ ${officialMin} 张，官网素材足够，跳过新闻稿采集`);
+  }
+
+  // 1. 必应搜索新闻稿（官网素材不足时执行；多关键词合并，提高新闻稿命中率）
   const queries = [`"${carName}" 上市`, `"${carName}" 价格 配置`, `"${carName}" 新车发布`];
   const seenSearchUrls = new Set<string>();
   const results: SearchResult[] = [];
-  for (const q of queries) {
-    const r = await searchBing(q);
-    for (const item of r) {
-      if (!seenSearchUrls.has(item.url)) {
-        seenSearchUrls.add(item.url);
-        results.push(item);
-      }
-    }
-    if (results.length >= 10) break;
-  }
-
-  if (results.length === 0) {
-    console.log("  ⚠ 未找到新闻稿，直接走汽车之家回退");
-  }
-
-  // 2. 抓取文章页面 → 解析配图
-
-  for (const result of results.slice(0, 5)) {
-    const domain = extractDomain(result.url);
-    let source = "未知";
-    if (domain.includes("sina.com.cn")) source = "新浪";
-    else if (domain.includes("ithome.com")) source = "IT之家";
-    else if (domain.includes("163.com")) source = "网易";
-    else if (domain.includes("yiche.com")) source = "易车";
-    else if (domain.includes("autohome.com.cn")) source = "汽车之家";
-
-    console.log(`\n📰 抓取: [${source}] ${result.title.substring(0, 40)}...`);
-
-    try {
-      const r = await fetchWithRetry(result.url, HEADERS, 20000);
-      const html = await r.text();
-      const images = parseArticleImages(html, result.url);
-
-      console.log(`  解析到 ${images.length} 张配图`);
-
-      for (const img of images) {
-        if (!allImageUrls.has(img)) {
-          allImageUrls.add(img);
-          imageToArticle.set(img, result.url);
-          imageToSource.set(img, source);
+  if (!officialEnough) {
+    for (const q of queries) {
+      const r = await searchBing(q);
+      for (const item of r) {
+        if (!seenSearchUrls.has(item.url)) {
+          seenSearchUrls.add(item.url);
+          results.push(item);
         }
       }
-    } catch (e) {
-      console.error(`  ✗ 抓取失败: ${(e as Error).message}`);
+      if (results.length >= 10) break;
     }
 
-    await sleep(500); // 礼貌限速
+    if (results.length === 0) {
+      console.log("  ⚠ 未找到新闻稿，直接走汽车之家回退");
+    }
+  } else {
+    console.log("  ⤬ 跳过必应搜索（官网素材已足够）");
+  }
+
+  // 2. 抓取文章页面 → 解析配图（官网素材不足时执行）
+  if (!officialEnough) {
+    for (const result of results.slice(0, 5)) {
+      const domain = extractDomain(result.url);
+      let source = "未知";
+      if (domain.includes("sina.com.cn")) source = "新浪";
+      else if (domain.includes("ithome.com")) source = "IT之家";
+      else if (domain.includes("163.com")) source = "网易";
+      else if (domain.includes("yiche.com")) source = "易车";
+      else if (domain.includes("autohome.com.cn")) source = "汽车之家";
+
+      console.log(`\n📰 抓取: [${source}] ${result.title.substring(0, 40)}...`);
+
+      try {
+        const r = await fetchWithRetry(result.url, HEADERS, 20000);
+        const html = await r.text();
+        const images = parseArticleImages(html, result.url);
+
+        console.log(`  解析到 ${images.length} 张配图`);
+
+        for (const img of images) {
+          if (!allImageUrls.has(img)) {
+            allImageUrls.add(img);
+            imageToArticle.set(img, result.url);
+            imageToSource.set(img, source);
+          }
+        }
+      } catch (e) {
+        console.error(`  ✗ 抓取失败: ${(e as Error).message}`);
+      }
+
+      await sleep(500); // 礼貌限速
+    }
   }
 
   console.log(`\n📊 共发现 ${allImageUrls.size} 张去重配图`);
 
-  // 3. 下载新闻稿配图
+  // 3. 下载图片（官网优先，统计官网成功数）
   const imgDir = join(outDir, "images");
   mkdirSync(imgDir, { recursive: true });
   const newsImages: ImageEntry[] = [];
   const seenContentHashes = new Set<string>(); // 内容 hash 去重
   const seenUrls = new Set<string>(); // URL 去重
+  let officialDownloaded = 0; // 官网图实际成功下载数
 
   for (const url of allImageUrls) {
+    // 官网素材已达标时：只下载官网图（allImageUrls 中官网在前，非官网自然被跳过）
+    if (officialDownloaded >= officialMin && !officialUrls.has(url)) continue;
+
     if (newsImages.length >= minImages * 2) break; // 多下载一些，后面有过滤
 
     // URL 去重
@@ -759,8 +1101,15 @@ async function main(): Promise<void> {
       continue;
     }
 
+    // 排除场景图/风景图（官网/新闻稿的营销素材，非实车图）
+    if (shouldExcludeSceneImage(url)) {
+      console.log(`  ⤬ 排除 ${url.substring(0, 50)}... (场景/风景图)`);
+      continue;
+    }
+
     const source = imageToSource.get(url) || "未知";
     const article = imageToArticle.get(url) || "";
+    const isOfficial = officialUrls.has(url);
 
     try {
       // 处理协议相对路径
@@ -805,7 +1154,10 @@ async function main(): Promise<void> {
         source,
         article,
         size: compressedBuf.byteLength,
+        meta: imageToMeta.get(url),
       });
+
+      if (isOfficial) officialDownloaded++;
 
       console.log(`  ✓ ${fname} (${(compressedBuf.byteLength / 1024).toFixed(0)}KB) [${source}]`);
     } catch (e) {
@@ -815,13 +1167,18 @@ async function main(): Promise<void> {
     await sleep(DELAY_MS);
   }
 
-  console.log(`\n📊 新闻稿配图下载完成: ${newsImages.length} 张`);
+  console.log(`\n📊 图片下载完成: ${newsImages.length} 张（官网 ${officialDownloaded} 张）`);
 
-  // 4. 回退：不足 minImages 张时回退汽车之家
+  // 4. 回退：官网素材未达标 且 总数不足 minImages 张时回退汽车之家
   let fallbackImages: { file: string; specname: string; size: number }[] = [];
 
-  if (!noFallback && newsImages.length < minImages) {
-    console.log(`\n⚠ 新闻稿配图不足 ${minImages} 张，回退汽车之家 getpiclist 补齐...`);
+  const officialMet = officialDownloaded >= officialMin;
+  if (officialMet) {
+    console.log(`\n✅ 官网图 ${officialDownloaded} 张 ≥ ${officialMin} 张，官网素材足够，跳过汽车之家回退`);
+  }
+
+  if (!noFallback && !officialMet && newsImages.length < minImages) {
+    console.log(`\n⚠ 图片不足 ${minImages} 张（官网仅 ${officialDownloaded} 张），回退汽车之家 getpiclist 补齐...`);
 
     // 尝试读取 spec-data.json 获取 seriesId
     const specDataPath = join(outDir, "spec-data.json");
@@ -935,14 +1292,19 @@ async function main(): Promise<void> {
     writeFileSync(sourcesPath, imgSection);
   }
 
+  // 5.5 输出 images-meta.json（图注工作流用）
+  writeImagesMeta(outDir, newsImages);
+
   // 6. 更新 spec-data.json
   const specDataPath = join(outDir, "spec-data.json");
   mergeImagesToSpecData(specDataPath, newsImages, fallbackImages);
 
   // 7. 输出摘要
   const totalImages = newsImages.length + fallbackImages.length;
+  const newsOnly = newsImages.length - officialDownloaded;
   console.log(`\n✅ 完成`);
-  console.log(`  新闻稿配图: ${newsImages.length} 张`);
+  console.log(`  官网图片: ${officialDownloaded} 张`);
+  console.log(`  新闻稿配图: ${newsOnly} 张`);
   console.log(`  汽车之家回退: ${fallbackImages.length} 张`);
   console.log(`  总计: ${totalImages} 张 → ${join(outDir, "images")}`);
   console.log(`  来源记录: ${join(outDir, "sources.md")}`);
@@ -951,7 +1313,8 @@ async function main(): Promise<void> {
   console.log(
     JSON.stringify({
       carName,
-      newsImages: newsImages.length,
+      officialImages: officialDownloaded,
+      newsImages: newsOnly,
       fallbackImages: fallbackImages.length,
       total: totalImages,
       images: allImages.map((img) => ({
