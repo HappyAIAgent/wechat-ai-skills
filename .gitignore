@@ -25,3 +25,5 @@ cover-image/
 /*.png
 /*.jpg
 /*.jpeg
+# Claude Code技能符号链接（每台机器各自维护）
+.claude/skills/
