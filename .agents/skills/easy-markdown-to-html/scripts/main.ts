@@ -15,9 +15,10 @@ import {
   headingStyleOptions,
   legendOptions,
   resolvePrimaryColor,
+  resolveThemeName,
   themeNames,
 } from './config'
-import type { HeadingStylesInput, ThemeName } from './config'
+import type { HeadingStylesInput } from './config'
 
 const HEADING_LEVELS = [`h1`, `h2`, `h3`, `h4`, `h5`, `h6`]
 
@@ -119,9 +120,7 @@ function main(): void {
       const flag = arg.split(`=`)[0]!
       switch (flag) {
         case `--theme`:
-          opts.theme = parseValue(i, flag) as ThemeName
-          if (!themeNames.includes(opts.theme as never))
-            throw new Error(`无效主题: ${opts.theme}（可选: ${themeNames.join(', ')}）`)
+          opts.theme = resolveThemeName(parseValue(i, flag))
           if (!arg.includes(`=`)) i += 1
           break
         case `--color`:
