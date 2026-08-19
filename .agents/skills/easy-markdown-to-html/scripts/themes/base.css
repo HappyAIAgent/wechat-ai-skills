@@ -3,6 +3,13 @@
  * Base element styles and CSS variable definitions
  */
 
+/* ==================== Reset ==================== */
+/* 浏览器默认 body 有 8px 外边距，导出/预览时整体出现白边，清零 */
+body {
+  margin: 0;
+  padding: 0;
+}
+
 /* ==================== Container ==================== */
 section,
 #output .container {
@@ -10,6 +17,8 @@ section,
   font-size: var(--md-font-size);
   line-height: 1.75;
   text-align: left;
+  /* 建立 BFC，阻止子元素垂直 margin 塌陷穿出容器（html 比 body 高的根因） */
+  overflow: hidden;
 }
 
 #output {
