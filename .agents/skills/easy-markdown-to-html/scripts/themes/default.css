@@ -33,7 +33,7 @@ h2 {
 h3 {
   padding-left: 8px;
   border-left: 3px solid var(--md-primary-color);
-  margin: 2em 8px 0.75em 0;
+  margin: 2em 0 0.75em 0;
   color: hsl(var(--foreground));
   font-size: calc(var(--md-font-size) * 1.1);
   font-weight: bold;
@@ -42,7 +42,7 @@ h3 {
 
 /* ==================== H4 ==================== */
 h4 {
-  margin: 2em 8px 0.5em;
+  margin: 2em 0 0.5em;
   color: var(--md-primary-color);
   font-size: calc(var(--md-font-size) * 1);
   font-weight: bold;
@@ -50,7 +50,7 @@ h4 {
 
 /* ==================== H5 ==================== */
 h5 {
-  margin: 1.5em 8px 0.5em;
+  margin: 1.5em 0 0.5em;
   color: var(--md-primary-color);
   font-size: calc(var(--md-font-size) * 1);
   font-weight: bold;
@@ -58,7 +58,7 @@ h5 {
 
 /* ==================== H6 ==================== */
 h6 {
-  margin: 1.5em 8px 0.5em;
+  margin: 1.5em 0 0.5em;
   font-size: calc(var(--md-font-size) * 1);
   color: var(--md-primary-color);
 }

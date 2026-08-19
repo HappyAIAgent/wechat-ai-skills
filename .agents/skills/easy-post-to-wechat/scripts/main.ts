@@ -164,6 +164,20 @@ function extractFirstHeading(html: string): string | undefined {
   return stripTags(match[1]!).trim()
 }
 
+/**
+ * 剥离正文开头的重复 H1（公众号标题已由 --title / frontmatter 提供时调用）。
+ * doocs/md 渲染默认保留正文首个 `# 标题`，若发布标题来自外部参数，正文里
+ * 再显示一次大标题就是重复的。仅当 H1 是 section 容器第一个子元素时剥离，
+ * 避免误伤正文中间的小节标题；标题回退自正文 H1 时不应调用本函数。
+ */
+function stripLeadingH1(html: string): string {
+  const re = /(<section[^>]*>)\s*<h1[^>]*>[\s\S]*?<\/h1>/i
+  const match = re.exec(html)
+  if (!match)
+    return html
+  return html.slice(0, match.index + match[1]!.length) + html.slice(match.index + match[0]!.length)
+}
+
 function truncate(text: string, max: number): string {
   if (text.length <= max)
     return text
@@ -272,10 +286,15 @@ async function main(): Promise<void> {
   html = await inlineStylesForWechat(html)
 
   // 2) 标题 / 摘要 / 作者
+  const externalTitle = args.title ?? frontMatter.title
   const title = truncate(
-    args.title ?? frontMatter.title ?? extractFirstHeading(html) ?? path.basename(input, ext),
+    externalTitle ?? extractFirstHeading(html) ?? path.basename(input, ext),
     64,
   )
+  // 2.1) 标题由外部提供（--title / frontmatter）时，正文开头的重复 H1 无保留价值，自动剥离。
+  //      （标题回退自正文 H1 时保留 H1，否则标题就丢了）
+  if (externalTitle)
+    html = stripLeadingH1(html)
   const digestRaw = args.digest ?? frontMatter.description
   const digest = digestRaw ? truncate(digestRaw, 120) : undefined
   const author = args.author ?? frontMatter.author

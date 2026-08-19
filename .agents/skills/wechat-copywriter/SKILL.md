@@ -492,7 +492,7 @@ bun run .agents/skills/easy-markdown-to-html/scripts/main.ts \
   --color {color}
 ```
 
-> `{theme}` 传 Step 0.3 选定的参数值（经典=`default` / 优雅=`grace` / 简洁=`simple`）；`{color}` 传 Step 0.4 选定的主题色 hex（11 种预设色或任意 hex，默认 `#0F4C81` 经典蓝）。**注意**：doocs/md 渲染默认保留正文首个 `# 标题`（公众号标题由发布环节 `--title` 单独控制，正文里若不想重复大标题请手动删掉开头 H1）。
+> `{theme}` 传 Step 0.3 选定的参数值（经典=`default` / 优雅=`grace` / 简洁=`simple`）；`{color}` 传 Step 0.4 选定的主题色 hex（11 种预设色或任意 hex，默认 `#0F4C81` 经典蓝）。**注意**：doocs/md 渲染默认保留正文首个 `# 标题`，正文里的 H1 会原样出现在渲染结果中——**发布环节（Step 7 的 `easy-post-to-wechat`）在标题由 `--title` 提供时会自动剥离正文开头的重复 H1，无需手动删除**；若最终交付的是 HTML 而非发布，且不想正文带大标题，再手动删掉开头 H1。
 
 ### 6.2 最终输出
 

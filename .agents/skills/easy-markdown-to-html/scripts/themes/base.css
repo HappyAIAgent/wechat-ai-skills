@@ -26,15 +26,14 @@ section,
 /*
  * Reset for exported HTML / share pages / VSCode preview (no Tailwind preflight).
  * Browser defaults leak in (e.g. blockquote 40px side margins, table border-collapse: separate).
- * Reset horizontal (and top) margins so export matches in-app preview.
- * Vertical spacing comes from theme blockquote { margin-bottom }; do not zero all margins here.
+ * Reset horizontal margins so export matches in-app preview.
+ * Vertical spacing comes from theme blockquote { margin }; do not zero all margins here.
  * section selector covers VSCode preview (no #output; content in section.container).
  */
 #output blockquote,
 section blockquote {
   margin-left: 0;
   margin-right: 0;
-  margin-top: 0;
 }
 
 #output table,
@@ -51,7 +50,7 @@ section table {
 
 /* ==================== Paragraph ==================== */
 p {
-  margin: 1.5em 8px;
+  margin: 1.5em 0;
   letter-spacing: 0.1em;
   color: hsl(var(--foreground));
 }
@@ -64,7 +63,7 @@ blockquote {
   border-radius: 6px;
   color: hsl(var(--foreground));
   background: var(--blockquote-background);
-  margin-bottom: 1em;
+  margin: 1em 0;
 }
 
 blockquote > p {
@@ -371,7 +370,7 @@ pre.code__pre,
   border-radius: 8px;
   padding: 0 !important;
   line-height: 1.5;
-  margin: 10px 8px;
+  margin: 10px 0;
 }
 
 /* ==================== Images ==================== */
@@ -398,21 +397,21 @@ ul {
 
 li {
   display: block;
-  margin: 0.2em 8px;
+  margin: 0.2em 0;
   color: hsl(var(--foreground));
 }
 
 /* Footnotes */
 /* footnotes rendered as <p> in buildFootnotes() */
 p.footnotes {
-  margin: 0.5em 8px;
+  margin: 0.5em 0;
   font-size: 80%;
   color: hsl(var(--foreground));
 }
 
 /* Diagrams */
 figure {
-  margin: 1.5em 8px;
+  margin: 1.5em 0;
   color: hsl(var(--foreground));
 }
 
@@ -433,7 +432,7 @@ hr {
   transform-origin: 0 0;
   transform: scale(1, 0.5);
   height: 0.4em;
-  margin: 1.5em 0;
+  margin: 1em 0;
 }
 
 /* Inline code */

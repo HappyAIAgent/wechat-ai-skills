@@ -27,7 +27,7 @@ bun {baseDir}/scripts/main.ts <article.md|article.html> [选项]
 | `<file.md>` | Markdown 输入，自动调用 `easy-markdown-to-html` 渲染（须已安装该技能） | — |
 | `<file.html>` | 直接发布已渲染好的 HTML（不再渲染） | — |
 | `--no-render` | 强制跳过渲染（仅限 HTML 输入时使用） | 关 |
-| `--title <text>` | 文章标题 | frontmatter `title` → HTML 内 `wechat-meta` 注释 → 正文首个 h1/h2 → 文件名 |
+| `--title <text>` | 文章标题；**传入时自动剥离正文开头的重复 H1**（doocs/md 渲染默认保留正文首个 `# 标题`，与公众号标题重复） | frontmatter `title` → HTML 内 `wechat-meta` 注释 → 正文首个 h1/h2 → 文件名 |
 | `--digest <text>` | 摘要（≤120 字） | frontmatter `description` → HTML 内 `wechat-meta` 注释 → 正文首 120 字 |
 | `--author <text>` | 作者署名 | frontmatter `author` |
 | `--thumb <图片>` | 封面图（本地路径，PNG/JPG） | 文章内第一张本地图片 |
@@ -63,7 +63,7 @@ bun {baseDir}/scripts/main.ts article.html
 ## 工作流程
 
 1. **渲染**：Markdown 输入 → shell-out 调用 `easy-markdown-to-html` 渲染为主题化 HTML（输出 HTML 路径 + frontmatter）
-2. **元信息**：标题/摘要/作者 按参数 → frontmatter → 正文 的优先级取用
+2. **元信息**：标题/摘要/作者 按参数 → frontmatter → 正文 的优先级取用；**标题来自 `--title`/frontmatter 时，自动剥离正文开头的重复 H1**（标题回退自正文 h1/h2 时保留，避免标题丢失）
 3. **凭证**：读取 `WECHAT_APP_ID` / `WECHAT_APP_SECRET`（`process.env` → `<cwd>/.baoyu-skills/.env`），换取 access_token
 4. **上传正文图片**：HTML 内所有本地 `<img src="本地路径">` 通过 `/cgi-bin/media/uploadimg` 上传，替换为 mmbiz 永久 URL；远程图片（http/https/data/mmbiz）原样保留
 5. **上传封面**：`--thumb` 或文章第一张本地图 → `/cgi-bin/material/add_material` 得到 thumb_media_id
