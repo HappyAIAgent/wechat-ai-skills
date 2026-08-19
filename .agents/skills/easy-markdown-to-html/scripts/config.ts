@@ -21,6 +21,22 @@ export const colorPresets: ReadonlyArray<{ value: string; label: string }> = [
 export const themeNames = [`default`, `grace`, `simple`] as const
 export type ThemeName = (typeof themeNames)[number]
 
+const themeAliases: Readonly<Record<string, ThemeName>> = {
+  [`default`]: `default`,
+  [`经典`]: `default`,
+  [`grace`]: `grace`,
+  [`优雅`]: `grace`,
+  [`simple`]: `simple`,
+  [`简洁`]: `simple`,
+}
+
+export function resolveThemeName(value: string): ThemeName {
+  const theme = themeAliases[value.trim()]
+  if (theme)
+    return theme
+  throw new Error(`无效主题: ${value}（可选: ${themeNames.join(' / ')}，中文: 经典/优雅/简洁）`)
+}
+
 export const fontFamilyPresets = [
   { label: `无衬线`, value: `-apple-system-font,BlinkMacSystemFont, Helvetica Neue, PingFang SC, Hiragino Sans GB , Microsoft YaHei UI , Microsoft YaHei ,Arial,sans-serif` },
   { label: `衬线`, value: `Optima-Regular, Optima, PingFangSC-light, PingFangTC-light, 'PingFang SC', Cambria, Cochin, Georgia, Times, 'Times New Roman', serif` },
@@ -63,6 +79,7 @@ export const defaultRenderOptions = {
 /** Resolve a color value that may be a preset name or a hex string. */
 export function resolvePrimaryColor(value: string): string {
   const preset = colorPresets.find((c) => c.value.toLowerCase() === value.toLowerCase())
+    ?? colorPresets.find((c) => c.label === value)
   if (preset)
     return preset.value
   if (/^#[0-9a-f]{3,8}$/i.test(value))

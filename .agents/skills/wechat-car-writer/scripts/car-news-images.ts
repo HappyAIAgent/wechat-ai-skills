@@ -26,109 +26,23 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { createHash } from "crypto";
 import { execSync } from "child_process";
-
-// ─── 常量 ───────────────────────────────────────────────────────────────────────
-
-const HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  Referer: "https://www.bing.com/",
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-};
-
-// 域名白名单：优先从这些站点抓取新闻稿配图（新浪/IT之家/网易有专门解析器，其余走通用解析）
-const DOMAIN_WHITELIST = [
-  // 汽车垂直
-  "autohome.com.cn",
-  "www.autohome.com.cn",
-  "www.che168.com",
-  "www.dongchedi.com",
-  "www.pcauto.com.cn",
-  "yiche.com",
-  "news.yiche.com",
-  "www.xcar.com.cn",
-  "www.icauto.com.cn",
-  "www.cheyun.com",
-  "www.d1ev.com", // 第一电动
-  "gasgoo.com", // 盖世汽车
-  // 门户汽车
-  "auto.sina.com.cn",
-  "finance.sina.com.cn",
-  "k.sina.com.cn",
-  "auto.163.com",
-  "m.163.com",
-  "www.163.com",
-  "auto.sohu.com",
-  "www.sohu.com",
-  "auto.qq.com",
-  "new.qq.com",
-  "auto.ifeng.com",
-  // 科技/资讯
-  "www.ithome.com",
-  "m.ithome.com",
-  "36kr.com",
-  "www.huxiu.com",
-  "www.kuaikeji.com", // 快科技
-  "www.techweb.com.cn",
-  // 其他
-  "auto.cnr.cn",
-  "auto.cri.cn",
-  "cnautonews.com",
-  "www.autoreport.cn",
-];
-
-// 新浪图片过滤关键词（logo/分享层/水印）
-const SINA_FILTER_KEYWORDS = [
-  "efade7fd",
-  "auto_qr",
-  "layersina",
-  "layerweibo",
-  "layerauto",
-  "layerxny",
-  "removebg_",
-  "share_",
-  "logo",
-  "icon",
-  "avatar",
-];
-
-// 排除的图片关键词（logo、图标、二维码等）
-const EXCLUDE_IMAGE_KEYWORDS = [
-  "logo",
-  "icon",
-  "qr",
-  "qrcode",
-  "二维码",
-  "分享",
-  "share",
-  "weibo",
-  "weixin",
-  "微信",
-  "微博",
-  "topbar",
-  "footer",
-  "header",
-  "nav",
-  "menu",
-  "placeholder",
-  "loading",
-  "blank",
-  "pixel",
-  "tracker",
-  "analytics",
-  "sprite",
-  "btn",
-  "button",
-];
-
-const MIN_IMAGE_SIZE = 50 * 1024; // <50KB 过滤缩略图/坏图
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // >10MB 跳过（异常大图）
-const TARGET_IMAGE_SIZE = 500 * 1024; // 下载后压缩目标：>500KB 即压缩（微信加载要求）
-const DELAY_MS = 200; // 礼貌限速
+import {
+  HEADERS,
+  DOMAIN_WHITELIST,
+  SINA_FILTER_KEYWORDS,
+  EXCLUDE_IMAGE_KEYWORDS,
+  MIN_IMAGE_SIZE,
+  MAX_IMAGE_SIZE,
+  TARGET_IMAGE_SIZE,
+  DELAY_MS,
+  PY_SCRIPT,
+  SCENE_IMAGE_KEYWORDS,
+  OFFICIAL_SITES,
+  OFFICIAL_MODEL_SITES,
+} from "./car-news-images-config";
 
 // ─── Python venv / crawl4ai 环境准备（方案 D 用） ────────────────────────────────
 // 目标：无 venv 自动创建，未装 crawl4ai 自动 pip 安装，让回退链路开箱即用。
-const PY_SCRIPT = join(process.cwd(), ".agents/skills/wechat-car-writer/scripts/crawl4ai-fetch.py");
 
 /** 探测 venv python 路径（Windows: .venv/Scripts/python.exe，macOS/Linux: .venv/bin/python） */
 function venvPython(): string | null {
@@ -175,78 +89,6 @@ function ensurePythonEnv(): string {
 
   return pythonBin;
 }
-
-// 场景图/功能演示图排除关键词（URL 路径中出现即视为"非实车图"）
-//
-// 车企官网（尤其 AITO/问界、零跑等）的营销素材里混有大量"车+风景"场景图：
-// 山路驾驶、城市道路、雪地越野、充电演示、加速测试等。这类图车占比小、
-// 以风景/场景为主体，不适合作为车型配图。而实车图（外观/内饰/细节/颜色）
-// 通常路径含 exterior/interior/space/cockpit/hero/overview 等。
-//
-// 注意：这里只用"排除式"关键词（明确是场景/功能演示），不用"保留式"，
-// 因为各官网 URL 命名差异大（理想用 hash、AITO 用语义路径），
-// 只排除明确的场景特征词，避免误杀不同站点的实车图。
-const SCENE_IMAGE_KEYWORDS = [
-  // 驾驶/道路场景
-  "driving",
-  "driver",
-  "drive-",
-  "road",
-  "highway",
-  "freeway",
-  "city-drive",
-  "urban",
-  "street",
-  "traffic",
-  "overtaking",
-  "lane",
-  // 越野/地形场景
-  "offroad",
-  "off-road",
-  "terrain",
-  "mountain",
-  "snow",
-  "desert",
-  "mud",
-  "gravel",
-  "trail",
-  // 功能演示/测试
-  "acceleration",
-  "0-100",
-  "braking",
-  "brake",
-  "test",
-  "testing",
-  "range-extension",
-  "battery-life",
-  "charging",
-  "charge-",
-  "charging-station",
-  "energy",
-  // 智驾/安全演示
-  "turing",
-  "ads-",
-  "ads4",
-  "safety",
-  "collision",
-  "aeb",
-  "parking",
-  "valet",
-  "nca",
-  "noa",
-  "navigation",
-  // 场景/背景图
-  "landscape",
-  "scenery",
-  "scene",
-  "scenic",
-  "background-scene",
-  "camping",
-  "travel",
-  "trip",
-  "family-life",
-  "lifestyle",
-];
 
 /** 检查图片 URL 是否为场景图/风景图（应排除，非实车图） */
 function shouldExcludeSceneImage(url: string): boolean {
@@ -304,7 +146,12 @@ function extractImageUrlsFromText(text: string): string[] {
   const re = /https?:\/\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp)(?:\?[^\s"'<>\\]*)?/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
-    urls.push(m[0]);
+    const u = m[0];
+    // 过滤损坏 URL：页面内嵌 JSON 常被 HTML 转义（&quot;），正则排除类拦不住转义引号，
+    // 匹配结果会横跨整个 JSON 串（如 "...bao8.html&quot;,&quot;text&quot;... 直到下一个真 .jpg"）。
+    // 含 &quot;/&#34;/{/}/字面引号 的 URL 一律视为损坏。
+    if (/&(?:quot|#34);|[{}"]/.test(u)) continue;
+    urls.push(u);
   }
   return [...new Set(urls)];
 }
@@ -356,6 +203,133 @@ function extractInlineScriptJson(html: string): string[] {
   return blocks;
 }
 
+/** HTML 实体反转义（data-json 属性值是 HTML 转义 JSON） */
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&#34;/g, '"')
+    .replace(/&#x22;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#x2F;/g, "/")
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+}
+
+/** 提取 HTML 中所有 data-json="..." 属性值（反转义后返回，供 JSON.parse） */
+function extractDataJsonBlocks(html: string): string[] {
+  const blocks: string[] = [];
+  const re = /data-json="([\s\S]*?)"/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) blocks.push(decodeHtmlEntities(m[1]));
+  return blocks;
+}
+
+/** 从车型页 URL 推断车型 slug（/bao5 → "bao5"）；无明确车型段返回空串 */
+function inferModelSlug(url: string): string {
+  try {
+    const seg = new URL(url).pathname.split("/").filter(Boolean).pop() || "";
+    if (/\.\w+$/.test(seg)) return ""; // 带扩展名（.html）→ 品牌/非车型页
+    return /^[a-z0-9][a-z0-9-]{1,19}$/i.test(seg) ? seg.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+/** 相对图片路径解析为绝对 URL */
+function resolveImageUrl(u: string, baseUrl: string): string | null {
+  if (u.startsWith("http://") || u.startsWith("https://")) return u;
+  if (u.startsWith("//")) return "https:" + u;
+  if (u.startsWith("/")) {
+    try {
+      return new URL(u, baseUrl).toString();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * 递归遍历内嵌 JSON，收集图片 URL + 语义标题（供图注使用）。
+ * - 图片字段：img.pc / bg.pc / posterpc / img（字符串）等，相对路径拼 baseUrl 转绝对
+ * - 语义标题：title.text / text.title.text / name.text / tabTitle.text / tabDes.text
+ * - 车型过滤：页面含多车型导航图（豹5页混入豹8/钛3/钛7），modelSlug 非空时只保留本车型图
+ * - 排除导航图标路径（toubudaohang/chexi/daohang）
+ */
+function extractImagesWithMetaFromJson(
+  node: unknown,
+  baseUrl: string,
+  modelSlug: string,
+  urls: Set<string>,
+  metaMap: Map<string, OfficialImage["meta"]>
+): void {
+  if (node == null) return;
+  if (typeof node === "string") {
+    for (const u of extractImageUrlsFromText(node)) urls.add(u);
+    return;
+  }
+  if (Array.isArray(node)) {
+    for (const item of node) extractImagesWithMetaFromJson(item, baseUrl, modelSlug, urls, metaMap);
+    return;
+  }
+  if (typeof node === "object") {
+    const obj = node as Record<string, unknown>;
+
+    let semantic = "";
+    let nearbyText = "";
+    const textObj = obj.text;
+    if (textObj && typeof textObj === "object") {
+      const tt = (textObj as Record<string, unknown>).title;
+      if (tt && typeof tt === "object") {
+        const tv = (tt as Record<string, unknown>).text;
+        if (typeof tv === "string" && tv.trim() && tv.trim().length < 60) semantic = tv.trim();
+      }
+      const dd = (textObj as Record<string, unknown>).des;
+      if (dd && typeof dd === "object") {
+        const dv = (dd as Record<string, unknown>).text;
+        if (typeof dv === "string" && dv.trim()) nearbyText = dv.trim().slice(0, 60);
+      }
+    }
+    if (!semantic) {
+      for (const c of [obj.title, obj.name, obj.tabTitle, obj.tabDes]) {
+        if (c && typeof c === "object") {
+          const tv = (c as Record<string, unknown>).text;
+          if (typeof tv === "string" && tv.trim() && tv.trim().length < 60) {
+            semantic = tv.trim();
+            break;
+          }
+        }
+      }
+    }
+
+    const imageCandidates: string[] = [];
+    for (const ik of ["pc", "bg", "posterpc", "img"] as const) {
+      const v = obj[ik];
+      if (typeof v === "string") imageCandidates.push(v);
+      else if (v && typeof v === "object") {
+        const vp = (v as Record<string, unknown>).pc;
+        if (typeof vp === "string") imageCandidates.push(vp);
+      }
+    }
+
+    for (const u of imageCandidates) {
+      if (!/\.(jpe?g|png|webp)(\?|$)/i.test(u)) continue;
+      const absUrl = resolveImageUrl(u, baseUrl);
+      if (!absUrl) continue;
+      if (/toubudaohang|\/chexi\/|daohang/i.test(absUrl)) continue;
+      if (modelSlug && !absUrl.toLowerCase().includes(modelSlug)) continue;
+      urls.add(absUrl);
+      if (semantic) {
+        metaMap.set(absUrl, { alt: semantic, headings: [semantic], nearbyText });
+      }
+    }
+
+    for (const v of Object.values(obj)) extractImagesWithMetaFromJson(v, baseUrl, modelSlug, urls, metaMap);
+  }
+}
+
 /** 抓取官网 HTML 源码（普通 fetch，无需浏览器） */
 async function fetchOfficialHtml(url: string): Promise<string> {
   const r = await fetchWithRetry(url, HEADERS, 30000, 2);
@@ -376,7 +350,7 @@ type OfficialImage = { url: string; meta?: { alt: string; headings: string[]; ne
 async function fetchOfficialImages(url: string): Promise<OfficialImage[]> {
   const urls = new Set<string>();
   const metaMap = new Map<string, OfficialImage["meta"]>();
-  const imgUrlRe = /https?:\/\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp)(?:\?[^\s"'<>\\]*)?/gi;
+  let modelSlug = "";
 
   try {
     // ── 方案 A：直接抓 HTML 源码 ──
@@ -404,14 +378,39 @@ async function fetchOfficialImages(url: string): Promise<OfficialImage[]> {
         extractImageUrlsFromJson(JSON.parse(block), urls);
       } catch {
         // 内联 JSON 可能不完整（截断），直接用正则捞图片 URL
-        let m: RegExpExecArray | null;
-        while ((m = imgUrlRe.exec(block)) !== null) urls.add(m[0]);
+        for (const u of extractImageUrlsFromText(block)) urls.add(u);
       }
     }
 
+    // A2.5: 解析 data-json 属性块（HTML 转义 JSON，含相对路径实车图 + 语义标题）
+    // 方程豹等站点把车型页内容整体塞进 data-json="..." 属性，图片多为相对路径
+    // （/material/...），A3 的绝对 URL 正则抓不到。反转义 + JSON.parse + 递归提取。
+    modelSlug = inferModelSlug(url);
+    const dataJsonBlocks = extractDataJsonBlocks(html);
+    let dataJsonCount = 0;
+    for (const block of dataJsonBlocks) {
+      try {
+        const parsed = JSON.parse(block);
+        const before = urls.size;
+        extractImagesWithMetaFromJson(parsed, url, modelSlug, urls, metaMap);
+        dataJsonCount += urls.size - before;
+      } catch {
+        // 单块解析失败不阻塞，继续其他块
+      }
+    }
+    if (dataJsonBlocks.length > 0) {
+      console.log(`  data-json 内嵌解析: 新增 ${dataJsonCount} 张（共 ${urls.size} 张）`);
+    }
+
     // A3: 直接扫描整个 HTML 的图片 URL（<img src> / CSS background / JSON 字符串）
-    let m: RegExpExecArray | null;
-    while ((m = imgUrlRe.exec(html)) !== null) urls.add(m[0]);
+    for (const u of extractImageUrlsFromText(html)) {
+      // 车型 slug 过滤（仅产品资产路径）：车型页常混入其他车型素材（豹5页有钛3视频海报），
+      // 只保留本车型路径下的图；理想等 hash URL 站点路径不含车型段，不受影响。
+      if (modelSlug && /\/material\/|\/product-detail\/|\/product\//i.test(u) && !u.toLowerCase().includes(modelSlug)) {
+        continue;
+      }
+      urls.add(u);
+    }
 
     console.log(`  HTML 内嵌解析: ${urls.size} 张图`);
   } catch (e) {
@@ -423,7 +422,9 @@ async function fetchOfficialImages(url: string): Promise<OfficialImage[]> {
   // Crawlee+Puppeteer 实测优于 crawl4ai（C16 31张 vs 29张，理想i8 27张 vs 6张），
   // 且 Puppeteer 用 channel:'chrome' 自动定位系统 Chrome（无绝对路径），
   // bun 可直接运行 TS，生态与项目（Bun/TS）契合。
-  if (urls.size === 0) {
+  // 注意：即使获取到图片，如果都是被排除的（如 logo），也应回退到 Crawlee
+  const hasUsableImages = [...urls].some(u => !shouldExcludeImage(u) && !shouldExcludeSceneImage(u));
+  if (!hasUsableImages) {
     try {
       console.log(`  回退 Crawlee+Puppeteer 滚动渲染: ${url}`);
       const tsScript = join(process.cwd(), ".agents/skills/wechat-car-writer/scripts/crawlee-fetch.ts");
@@ -494,7 +495,13 @@ async function fetchOfficialImages(url: string): Promise<OfficialImage[]> {
     }
   }
 
-  return [...urls].map((u) => ({ url: u, meta: metaMap.get(u) }));
+  // 最终统一过滤：A2 内联 script JSON、A2.5 字符串分支、Crawlee 回退等路径
+  // 均可能混入其他车型素材（豹5页有钛3海报），在返回前统一剔除，避免漏网。
+  const finalUrls = [...urls].filter(
+    (u) =>
+      !(modelSlug && /\/material\/|\/product-detail\/|\/product\//i.test(u) && !u.toLowerCase().includes(modelSlug))
+  );
+  return finalUrls.map((u) => ({ url: u, meta: metaMap.get(u) }));
 }
 
 /** fetch 带超时与重试 */
@@ -981,60 +988,25 @@ const imageToMeta = new Map<string, { alt: string; headings: string[]; nearbyTex
   // 官网图片 URL 集合（用于统计官网素材是否足够）
   const officialUrls = new Set<string>();
 
-  // 常见厂商官网 URL 映射（覆盖主流品牌）
-  const OFFICIAL_SITES: Record<string, string> = {
-    // 新势力
-    "零跑": "https://www.leapmotor.com/",
-    "小鹏": "https://www.xiaopeng.com/",
-    "蔚来": "https://www.nio.cn/",
-    "理想": "https://www.lixiang.com/",
-    "哪吒": "https://www.netaauto.com/",
-    "高合": "https://www.hiPhi.com/",
-    "极狐": "https://www.arcfox.com/",
-    "飞凡": "https://www.risingauto.com/",
-    "智己": "https://www.im-motors.com/",
-    "阿维塔": "https://www.avatr.com/",
-    "极石": "https://www.rox.com/",
-    "创维": "https://www.skyworthauto.com/",
-    
-    // 传统车企新能源
-    "比亚迪": "https://www.byd.com/cn",
-    "吉利": "https://www.geely.com/",
-    "长城": "https://www.gwm.com.cn/",
-    "哈弗": "https://www.haval.com.cn/",
-    "欧拉": "https://www.oravalt.com/",
-    "岚图": "https://www.voyah.com.cn/",
-    "极氪": "https://www.zeekrlife.com/",
-    "银河": "https://www.geelygalaxy.com/",
-    "深蓝": "https://www.deepal.com.cn/",
-    "启源": "https://www.qiyuanauto.com/",
-    
-    // 合资/外资
-    "特斯拉": "https://www.tesla.cn/",
-    "宝马": "https://www.bmw.com.cn/",
-    "奔驰": "https://www.mercedes-benz.com.cn/",
-    "奥迪": "https://www.audi.cn/",
-    "大众": "https://www.volkswagen.com.cn/",
-    "丰田": "https://www.toyota.com.cn/",
-    "本田": "https://www.honda.com.cn/",
-    "日产": "https://www.nissan.com.cn/",
-    
-    // 其他
-    "小米": "https://www.xiaomiev.com/",
-    "问界": "https://aito.auto/",       // 赛力斯华为联合设计官网（aitomotors.com 为无效域名）
-    "华为": "https://hima.auto/",       // 鸿蒙智行官网（hihonor.com 是荣耀，非华为汽车）
-    "仰望": "https://www.yangwangauto.com/",
-    "方程豹": "https://www.fangchengbao.com/",
-  };
-
   // 官网图片采集
   let officialUrl = customOfficialUrl;
   if (!noOfficial && !officialUrl) {
-    // 尝试匹配厂商官网
-    for (const [brand, url] of Object.entries(OFFICIAL_SITES)) {
-      if (carName.includes(brand)) {
+    // 优先匹配车型级别官网（更精确）
+    for (const [model, url] of Object.entries(OFFICIAL_MODEL_SITES)) {
+      if (carName.includes(model)) {
         officialUrl = url;
+        console.log(`  匹配到车型官网: ${model} → ${url}`);
         break;
+      }
+    }
+    // 未匹配到车型级别时，回退到品牌根页面
+    if (!officialUrl) {
+      for (const [brand, url] of Object.entries(OFFICIAL_SITES)) {
+        if (carName.includes(brand)) {
+          officialUrl = url;
+          console.log(`  匹配到品牌官网: ${brand} → ${url}`);
+          break;
+        }
       }
     }
   }
