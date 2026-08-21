@@ -1,5 +1,5 @@
 ---
-name: wechat-auto-creator
+name: wechat-title-writer
 description: "微信公众号自动图文编排器 — 从一句话选题到发布草稿箱的全自动流水线"
 ---
 
@@ -36,12 +36,12 @@ description: "微信公众号自动图文编排器 — 从一句话选题到发�
 ## 参数说明
 | 调用方式 | 示例 |
 |---------|------|
-| 位置参数 | `/wechat-auto-creator 写一篇关于现代人手机幻觉震动的文章` |
-| `--prompt` | `/wechat-auto-creator --prompt "写一篇关于现代人手机幻觉震动的文章"` |
-| `--publish` | `/wechat-auto-creator "选题" --publish` 跳过确认直接发布到草稿箱 |
-| `--dry-run` | `/wechat-auto-creator "选题" --dry-run` 只生成不发布 |
-| `--theme` | `/wechat-auto-creator "选题" --theme 优雅` 指定排版主题（经典/优雅/简洁），跳过询问 |
-| `--color` | `/wechat-auto-creator "选题" --color 翡翠绿` 指定主题色（11 种预设色或 hex），跳过询问 |
+| 位置参数 | `/wechat-title-writer 写一篇关于现代人手机幻觉震动的文章` |
+| `--prompt` | `/wechat-title-writer --prompt "写一篇关于现代人手机幻觉震动的文章"` |
+| `--publish` | `/wechat-title-writer "选题" --publish` 跳过确认直接发布到草稿箱 |
+| `--dry-run` | `/wechat-title-writer "选题" --dry-run` 只生成不发布 |
+| `--theme` | `/wechat-title-writer "选题" --theme 优雅` 指定排版主题（经典/优雅/简洁），跳过询问 |
+| `--color` | `/wechat-title-writer "选题" --color 翡翠绿` 指定主题色（11 种预设色或 hex），跳过询问 |
 
 ## 依赖的子技能（按调用顺序）
 - 写稿：风格文件（`02-资源/写作风格.md` / `02-资源/播客现场重播员-写作风格.md` / `02-资源/勇鹏的写作风格.md`）
@@ -300,16 +300,16 @@ openai (gpt-image-2)
 
 ```bash
 # 一句描述自动完成全部流程
-/wechat-auto-creator "为什么口袋里的手机，总让你觉得它震了？"
+/wechat-title-writer "为什么口袋里的手机，总让你觉得它震了？"
 
 # 自定义 prompt
-/wechat-auto-creator --prompt "写一篇关于现代人手机依赖症的文章，从幻觉震动说起"
+/wechat-title-writer --prompt "写一篇关于现代人手机依赖症的文章，从幻觉震动说起"
 
 # 自动发布（跳过确认）
-/wechat-auto-creator "选题描述" --publish
+/wechat-title-writer "选题描述" --publish
 
 # 仅生成不发布
-/wechat-auto-creator "选题描述" --dry-run
+/wechat-title-writer "选题描述" --dry-run
 ```
 
 ## 注意事项

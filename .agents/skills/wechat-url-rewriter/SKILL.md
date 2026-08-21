@@ -1,5 +1,5 @@
 ---
-name: wechat-copywriter
+name: wechat-url-rewriter
 description: |
   公众号仿写技能 - 从博客链接到可发布的公众号图文。
   自动抓取博客内容和图片，补充官网权威资料，融合两者按指定风格重写原创文章。
@@ -20,7 +20,7 @@ metadata:
     - baoyu-image-gen
 ---
 
-# 公众号仿写技能 (wechat-copywriter)
+# 公众号仿写技能 (wechat-url-rewriter)
 
 从博客链接到可发布的公众号图文，一键完成抓取、补充、重写、排版。
 
@@ -45,14 +45,14 @@ metadata:
 
 | 调用方式 | 示例 |
 |---------|------|
-| 基础调用 | `/wechat-copywriter https://xxx.blog` |
-| 指定风格 | `/wechat-copywriter https://xxx.blog --style 生动科普` |
-| 指定主题 | `/wechat-copywriter https://xxx.blog --theme 优雅` |
-| 指定主题色 | `/wechat-copywriter https://xxx.blog --color 翡翠绿` |
-| 指定目录 | `/wechat-copywriter https://xxx.blog --output ./my-draft/` |
-| 直接发布 | `/wechat-copywriter https://xxx.blog --publish` |
-| 仅生成 | `/wechat-copywriter https://xxx.blog --dry-run` |
-| 全参数 | `/wechat-copywriter https://xxx.blog --style 技术干货 --output ./draft/ --no-images --publish` |
+| 基础调用 | `/wechat-url-rewriter https://xxx.blog` |
+| 指定风格 | `/wechat-url-rewriter https://xxx.blog --style 生动科普` |
+| 指定主题 | `/wechat-url-rewriter https://xxx.blog --theme 优雅` |
+| 指定主题色 | `/wechat-url-rewriter https://xxx.blog --color 翡翠绿` |
+| 指定目录 | `/wechat-url-rewriter https://xxx.blog --output ./my-draft/` |
+| 直接发布 | `/wechat-url-rewriter https://xxx.blog --publish` |
+| 仅生成 | `/wechat-url-rewriter https://xxx.blog --dry-run` |
+| 全参数 | `/wechat-url-rewriter https://xxx.blog --style 技术干货 --output ./draft/ --no-images --publish` |
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
@@ -245,7 +245,7 @@ img.save('${DIR}/images/<文件名>.png', 'PNG')
 使用步骤 B 保存的完整 HTML 文件：
 
 ```bash
-bun run .agents/skills/wechat-copywriter/scripts/extract-svg.ts \
+bun run .agents/skills/wechat-url-rewriter/scripts/extract-svg.ts \
   "${DIR}/original/full.html" \
   "${DIR}/images" \
   --prefix arch

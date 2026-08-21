@@ -8,13 +8,13 @@ description: "微信公众号文章编排器，复用已有小红书图文素材
 ## 描述
 本技能将 `image-cards/` 目录下已生成好的小红书素材（summary.md + 压缩图片）自动编排成图文并茂的公众号文章并发布到草稿箱。
 
-> **注意**：`image-cards/` 是本地项目目录，由其他流程（如 xhs-auto-creator）生成。使用本技能前请确保该目录下存在有效主题。
+> **注意**：`image-cards/` 是本地项目目录，由其他流程（如 xhs-title-writer）生成。使用本技能前请确保该目录下存在有效主题。
 
 它不从头写稿或生图，而是**复用已有资产**：从小红书风格的 summary.md 中提取内容，扩展为公众号长文，搭配已压缩的图片（自动转 PNG 以兼容微信 API），走标准流水线（去 AI 味 → HTML → 发布）。
 
-## 与 wechat-auto-creator 的区别
+## 与 xhs-title-writer 的区别
 
-| 维度 | wechat-auto-creator | wechat-xhs-post (本技能) |
+| 维度 | xhs-title-writer | wechat-xhs-post (本技能) |
 |------|-------------------|----------------------|
 | 内容来源 | 用户一句话选题，从零写稿 | `image-cards/<topic>/summary.md` 已有素材 |
 | 配图 | 从提示词生图 | 复用 `compress/*.webp` 已压缩图片 |
@@ -228,7 +228,7 @@ image-cards/<topic-slug>/
 
 **预检：image-cards/ 目录检查**
 1. 检查 `image-cards/` 目录是否存在
-2. 如果不存在 → **停止**，提示："`image-cards/` 目录不存在，请先通过其他流程（如 xhs-auto-creator）生成小红书素材"
+2. 如果不存在 → **停止**，提示："`image-cards/` 目录不存在，请先通过其他流程（如 xhs-title-writer）生成小红书素材"
 3. 如果存在但为空（无子目录） → **停止**，提示："`image-cards/` 目录下没有可用主题，请先生成素材"
 4. 列出 `image-cards/` 下所有子目录供用户参考
 
@@ -245,7 +245,7 @@ image-cards/<topic-slug>/
 - 列出内容基于 `image-cards/` 实际目录，**不包含任何硬编码示例**
 
 **输出目录命名**：
-- 输出目录为 `00-草稿/{YYYYMMDD_标题简称}/`（与 `wechat-copywriter` 一致）
+- 输出目录为 `00-草稿/{YYYYMMDD_标题简称}/`（与 `wechat-url-rewriter` 一致）
 - `标题简称` 从 `summary.md` 主选标题提取，具体规则见 Step 2 的"创建输出目录"
 
 ### Step 2: 读取素材

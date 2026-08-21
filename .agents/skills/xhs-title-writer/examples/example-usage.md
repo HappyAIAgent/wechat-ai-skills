@@ -1,10 +1,10 @@
-# xhs-content-creator 使用示例
+# xhs-title-writer 使用示例
 
 ## 示例 1：基础使用
 
 ```bash
 # 输入一个选题，自动生成完整内容
-/xhs-content-creator "为什么口袋里的手机，总让你觉得它震了？"
+/xhs-title-writer "为什么口袋里的手机，总让你觉得它震了？"
 ```
 
 **输出**：
@@ -24,7 +24,7 @@ image-cards/phantom-vibration/
 
 ```bash
 # 跳过写稿，直接用描述出图
-/xhs-content-creator "幻觉震动：为什么你的手机总在震？" --fast
+/xhs-title-writer "幻觉震动：为什么你的手机总在震？" --fast
 ```
 
 **适用场景**：
@@ -36,7 +36,7 @@ image-cards/phantom-vibration/
 
 ```bash
 # 指定图片风格
-/xhs-content-creator "避坑指南：这些 AI 工具别再用了" --style bold
+/xhs-title-writer "避坑指南：这些 AI 工具别再用了" --style bold
 ```
 
 **可用风格**：
@@ -53,7 +53,7 @@ image-cards/phantom-vibration/
 
 ```bash
 # 不生成图片，只生成文案
-/xhs-content-creator "如何用 AI 提高工作效率？" --no-images
+/xhs-title-writer "如何用 AI 提高工作效率？" --no-images
 ```
 
 **输出**：
@@ -69,7 +69,7 @@ image-cards/ai-efficiency/
 
 ```bash
 # 跳过确认步骤，直接生成
-/xhs-content-creator "现代人的手机依赖症" --no-confirm
+/xhs-title-writer "现代人的手机依赖症" --no-confirm
 ```
 
 **适用场景**：

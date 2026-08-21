@@ -144,10 +144,9 @@ Claude Code 通过扫描 `.claude/skills/<技能名>/SKILL.md` 来发现技能�
 
 | 技能 | 类型 | 什么时候用 | 依赖 |
 |------|------|-----------|------|
-| `xhs-auto-creator` | 编排器（调用其他技能）| 需要创作小红书图文笔记（自动走完选题→写稿→配图→生图→排版发布的全流程） | `baoyu-xhs-images` + `baoyu-compress-image` 等 |
-| `xhs-content-creator` | 编排器（纯提示词） | 需要从一句话选题生成小红书完整图文内容（不含发布），配合 `xiaohongshu-ops` 使用 | 纯提示词，无脚本依赖 |
-| `wechat-auto-creator` | 编排器 | 需要从一句话选题自动走完公众号写作完整流程（写稿→配图→发布→归档） | `easy-markdown-to-html` + `easy-post-to-wechat` + 配图/格式化/去AI味系列 |
-| `wechat-copywriter` | 编排器 | 需要**仿写**博客/网页链接成公众号文章（抓取→补充官网资料→按指定文风重写→配图→发布），9 种文风可选 | `baoyu-url-to-markdown` + `easy-markdown-to-html` + `easy-post-to-wechat` + `humanizer-zh` 等 |
+| `xhs-title-writer` | 编排器（纯提示词） | 需要从一句话选题生成小红书完整图文内容（不含发布），配合 `xiaohongshu-ops` 使用 | 纯提示词，无脚本依赖 |
+| `wechat-title-writer` | 编排器 | 需要从一句话选题自动走完公众号写作完整流程（写稿→配图→发布→归档） | `easy-markdown-to-html` + `easy-post-to-wechat` + 配图/格式化/去AI味系列 |
+| `wechat-url-rewriter` | 编排器 | 需要**仿写**博客/网页链接成公众号文章（抓取→补充官网资料→按指定文风重写→配图→发布），9 种文风可选 | `baoyu-url-to-markdown` + `easy-markdown-to-html` + `easy-post-to-wechat` + `humanizer-zh` 等 |
 | `wechat-article-writer` | 纯提示词 | 需要写公众号文章（搜索资料→撰写→爆款标题→排版优化），不依赖图片素材 | 纯提示词，无脚本依赖 |
 | `wechat-car-writer` | 编排器 | 需要根据车型名称自动生成汽车营销公众号文章（定位车型→采集真实参数→**官网官方图优先**→车评风格写稿→去AI味→发布），参数真实+交叉校验，合规严格 | `car-locate.ts` + `car-specs.ts` + `car-official.ts` + `cover.ts` + `easy-markdown-to-html` + `easy-post-to-wechat` + `humanizer-zh` 等 |
 | `wechat-xhs-post` | 编排器 | 需要把已有小红书图文素材（`image-cards/`）复用成公众号长文（扩写→去AI味→WebP转PNG→发布） | `easy-markdown-to-html` + `easy-post-to-wechat` + `baoyu-compress-image` + `humanizer-zh` 等 |
@@ -195,8 +194,8 @@ Claude Code 通过扫描 `.claude/skills/<技能名>/SKILL.md` 来发现技能�
 
 | 输入形态 | 编排器 |
 |---------|-------|
-| 一句话选题（从零写） | `wechat-auto-creator` |
-| 博客/网页链接（仿写） | `wechat-copywriter` |
+| 一句话选题（从零写） | `wechat-title-writer` |
+| 博客/网页链接（仿写） | `wechat-url-rewriter` |
 | 已有小红书图文素材（`image-cards/`） | `wechat-xhs-post` |
 
 手动流程（各步骤可单独调用技能）：
@@ -229,8 +228,7 @@ Claude Code 通过扫描 `.claude/skills/<技能名>/SKILL.md` 来发现技能�
 
 ### 小红书流程
 
-- 全自动（含发布）：用 `xhs-auto-creator` 编排器自动完成选题分析 → 写稿 → 配图设计 → 生图 → 排版发布的全流程。
-- 仅内容生成（不含发布）：用 `xhs-content-creator` 生成图文内容，再用 `xiaohongshu-ops` 手动发布。
+- 仅内容生成（不含发布）：用 `xhs-title-writer` 生成图文内容，再用 `xiaohongshu-ops` 手动发布。
 
 ## 网页工具
 

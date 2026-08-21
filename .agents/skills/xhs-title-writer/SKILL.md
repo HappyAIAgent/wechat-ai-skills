@@ -1,5 +1,5 @@
 ---
-name: xhs-content-creator
+name: xhs-title-writer
 description: "小红书图文内容生成器 — 从一句话选题到生成完整图文内容的全自动流水线（不含发布）"
 ---
 
@@ -46,8 +46,8 @@ image-cards/{YYYYMMDD_标题简称}/
 ## 参数说明
 | 调用方式 | 示例 |
 |---------|------|
-| 位置参数 | `/xhs-content-creator 写一篇关于幻觉震动的小红书笔记` |
-| `--prompt` | `/xhs-content-creator --prompt "写一篇关于..."` |
+| 位置参数 | `/xhs-title-writer 写一篇关于幻觉震动的小红书笔记` |
+| `--prompt` | `/xhs-title-writer --prompt "写一篇关于..."` |
 | `--no-confirm` | 跳过确认步骤，直接生成 |
 | `--style` | 指定图片风格 (cute/fresh/warm/bold/notion...) |
 | `--fast` | 跳过写稿步骤，直接用用户描述出图 |
@@ -176,22 +176,22 @@ image-cards/{YYYYMMDD_标题简称}/summary.md
 
 ```bash
 # 一句描述自动完成全部流程
-/xhs-content-creator "为什么口袋里的手机，总让你觉得它震了？"
+/xhs-title-writer "为什么口袋里的手机，总让你觉得它震了？"
 
 # 指定 prompt
-/xhs-content-creator --prompt "写一篇关于现代人手机幻觉震动的科普"
+/xhs-title-writer --prompt "写一篇关于现代人手机幻觉震动的科普"
 
 # 指定图片风格
-/xhs-content-creator "选题" --style bold
+/xhs-title-writer "选题" --style bold
 
 # 快速模式（跳过写稿，直接用描述出图）
-/xhs-content-creator "选题" --fast
+/xhs-title-writer "选题" --fast
 
 # 只生成文案，不生成图片
-/xhs-content-creator "选题" --no-images
+/xhs-title-writer "选题" --no-images
 
 # 跳过确认步骤
-/xhs-content-creator "选题" --no-confirm
+/xhs-title-writer "选题" --no-confirm
 ```
 
 ## 注意事项

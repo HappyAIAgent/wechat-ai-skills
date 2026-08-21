@@ -39,10 +39,10 @@
 
 | 技能 | 用途 |
 |-----|------|
-| `wechat-auto-creator` | 一句话选题 → 公众号写作全自动流水线（写稿→配图→发布→归档） |
-| `wechat-copywriter` | 仿写博客/网页链接成公众号文章，9 种文风可选 |
+| `wechat-title-writer` | 一句话选题 → 公众号写作全自动流水线（写稿→配图→发布→归档） |
+| `wechat-url-rewriter` | 仿写博客/网页链接成公众号文章，9 种文风可选 |
 | `wechat-xhs-post` | 复用小红书图文素材生成公众号长文 |
-| `xhs-auto-creator` | 一句话选题 → 小红书图文全自动流水线 |
+| `xhs-title-writer` | 一句话选题 → 小红书图文内容生成（不含发布） |
 | `baoyu-cover-image` | 生成封面图提示词 + 图片 |
 | `baoyu-article-illustrator` | 分析文章配图位置，生成文内配图提示词 |
 | `baoyu-image-gen` | 调用 API 批量生图（7 个提供商） |

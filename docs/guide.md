@@ -35,7 +35,7 @@ npx skills add https://github.com/vercel-labs/agent-browser --skill agent-browse
 | OpenRouter | `OPENROUTER_API_KEY` | openrouter.ai |
 
 ## 创建符号链接举例
-ln -s ../../.agents/skills/xhs-content-creator .claude/skills/xhs-content-creator
+ln -s ../../.agents/skills/xhs-title-writer .claude/skills/xhs-title-writer
 
 ## 参考资料
 https://www.skills.sh/autoclaw-cc/xiaohongshu-skills/xiaohongshu-skills
