@@ -49,7 +49,7 @@ description: "微信公众号自动图文编排器 — 从一句话选题到发�
 - `humanizer-zh` — 去除 AI 写作痕迹（观点原创型）
 - `baoyu-cover-image` — 封面图生成
 - `baoyu-article-illustrator` — 文内配图位置分析
-- `baoyu-image-gen` — 批量生图（fallback: openai → dashscope → google）
+- `baoyu-image-gen` — 批量生图（fallback: dashscope → openai → google）
 - `easy-markdown-to-html` — Markdown → 公众号兼容 HTML（doocs/md 引擎）
 - `easy-post-to-wechat` — 发布到草稿箱（API 方式）
 - `baoyu-compress-image` — 图片压缩（需要时）
@@ -206,8 +206,8 @@ mkdir -p "00-草稿/${DATE}_{标题简称}/images"
 调用 `baoyu-image-gen` 批量生图：
 
 **Provider 优先级**（依次尝试，失败自动回退）：
-1. `openai`（`gpt-image-2`）— 首选
-2. `dashscope`（通义万象）— openai 不可用时的第一备用
+1. `dashscope`（通义万象）— openai 不可用时的第一备用
+2. `openai`（`gpt-image-2`）— 首选
 3. `google`（Gemini）— 最后的备用
 
 **质量参数**：
@@ -280,8 +280,8 @@ bun run .agents/skills/easy-post-to-wechat/scripts/main.ts \
 当 `baoyu-image-gen` 生图失败时，按以下顺序自动回退：
 
 ```
-openai (gpt-image-2)
-  → 失败 → dashscope (qwen-image-3.0-pro 或 wan2.7-image-pro)
+dashscope (qwen-image-3.0 或 wan2.7-image)
+  → 失败 → openai (gpt-image-2)
     → 失败 → google (gemini-3-pro-image)
       → 失败 → 报告用户，在 article.md 中以占位符 `![描述](images/{filename})` 标记位置，供用户手工补图
 ```

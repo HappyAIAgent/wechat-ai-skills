@@ -381,6 +381,21 @@ LangChain 的核心组件包括模型接口、提示词模板、链、记忆、�
 
 **注意**：Step 4 生成的 `article.md` 应包含图片引用，Step 5 会进一步处理图片排版。
 
+### 4.2.1 写入 frontmatter（必须）
+
+`article.md` 开头必须写入 YAML frontmatter，包含最终确定的标题和摘要：
+
+```yaml
+---
+title: 最终文章标题
+description: 一句话摘要，不超过 120 字
+---
+```
+
+**为什么必须**：后续 `easy-markdown-to-html` 会把 frontmatter 以 `wechat-meta` 注释嵌入 HTML，`easy-post-to-wechat` 发布时据此自动设置公众号标题与摘要、并剥离正文开头的重复 H1。缺了 frontmatter，标题只能回退取正文 H1，导致正文大标题与公众号标题重复显示。
+
+正文仍以 `# 标题` 开头（渲染排版需要），发布环节会自动剥离，无需手工删除。
+
 ### 4.3 去 AI 味（可选）
 
 如果未指定 `--no-humanize`，调用 `humanizer-zh` 处理。
@@ -465,7 +480,7 @@ LCEL 使用管道符连接各组件...
 
 1. 调用 `baoyu-article-illustrator` 分析文章结构
 2. 确定每张图的 Type × Style × Palette 三维度
-3. 调用 `baoyu-image-gen` 批量生成补充配图（Provider 优先级：openai → dashscope → google）
+3. 调用 `baoyu-image-gen` 批量生成补充配图（Provider 优先级：dashscope → openai → google）
 4. 图片保存到 `images/` 目录，更新 `article.md`
 
 #### `AI配图` 模式：AI 生成全部配图（必须）

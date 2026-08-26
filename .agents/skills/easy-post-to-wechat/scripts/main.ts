@@ -165,13 +165,14 @@ function extractFirstHeading(html: string): string | undefined {
 }
 
 /**
- * 剥离正文开头的重复 H1（公众号标题已由 --title / frontmatter 提供时调用）。
- * doocs/md 渲染默认保留正文首个 `# 标题`，若发布标题来自外部参数，正文里
- * 再显示一次大标题就是重复的。仅当 H1 是 section 容器第一个子元素时剥离，
- * 避免误伤正文中间的小节标题；标题回退自正文 H1 时不应调用本函数。
+ * 剥离正文开头的重复大标题（H1/H2）。
+ * 公众号标题单独展示，正文里再渲染一遍就是重复。doocs/md 渲染默认保留
+ * 正文首个 `# 标题`；无论发布标题来自外部参数（--title / frontmatter）还是
+ * 回退自该标题本身（文本已先提取进 title 变量），剥离都不会丢失信息。
+ * 仅当标题是 section 容器第一个子元素时剥离，避免误伤正文中间的小节标题。
  */
-function stripLeadingH1(html: string): string {
-  const re = /(<section[^>]*>)\s*<h1[^>]*>[\s\S]*?<\/h1>/i
+function stripLeadingHeading(html: string): string {
+  const re = /(<section[^>]*>)\s*<h([12])[^>]*>[\s\S]*?<\/h\2>/i
   const match = re.exec(html)
   if (!match)
     return html
@@ -291,10 +292,9 @@ async function main(): Promise<void> {
     externalTitle ?? extractFirstHeading(html) ?? path.basename(input, ext),
     64,
   )
-  // 2.1) 标题由外部提供（--title / frontmatter）时，正文开头的重复 H1 无保留价值，自动剥离。
-  //      （标题回退自正文 H1 时保留 H1，否则标题就丢了）
-  if (externalTitle)
-    html = stripLeadingH1(html)
+  // 2.1) 正文开头重复的大标题一律剥离：标题来自外部时它是冗余，回退自正文
+  //      首个 H1/H2 时文本也已提取进 title，公众号页面会单独展示文章标题。
+  html = stripLeadingHeading(html)
   const digestRaw = args.digest ?? frontMatter.description
   const digest = digestRaw ? truncate(digestRaw, 120) : undefined
   const author = args.author ?? frontMatter.author
