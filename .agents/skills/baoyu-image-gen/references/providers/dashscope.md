@@ -22,7 +22,7 @@ Read when the user picks `--provider dashscope`, sets `default_model.dashscope`,
 - Free-form `size` in `宽*高` format, plus aspect-ratio inference
 - `wan2.7-image-pro` text-to-image (no `--ref`): total pixels in `[768*768, 4096*4096]`, ratio in `[1:8, 8:1]`
 - `wan2.7-image-pro` with reference images and `wan2.7-image` (all scenarios): total pixels in `[768*768, 2048*2048]`, ratio in `[1:8, 8:1]`
-- Default: `1024*1024` (`--quality normal`) or `2048*2048` (`--quality 2k`); 4K requires explicit `--size`
+- Default: `1024*1024` (`--quality normal`) or `2048*2048` (`--quality normal`); 4K requires explicit `--size`
 - Supports up to 9 reference images in `--ref` (image editing / multi-image fusion)
 - Reference images are sent inline as base64 (or passed through if the path is an `http(s)://` URL)
 - API does NOT use `prompt_extend`; the skill omits it for this family

@@ -12,7 +12,7 @@ ${BUN_X} {baseDir}/scripts/main.ts --prompt "A cat" --image cat.png
 ${BUN_X} {baseDir}/scripts/main.ts --prompt "A landscape" --image out.png --ar 16:9
 
 # High quality
-${BUN_X} {baseDir}/scripts/main.ts --prompt "A cat" --image out.png --quality 2k
+${BUN_X} {baseDir}/scripts/main.ts --prompt "A cat" --image out.png --quality normal
 
 # Prompt from files
 ${BUN_X} {baseDir}/scripts/main.ts --promptfiles system.md content.md --image out.png

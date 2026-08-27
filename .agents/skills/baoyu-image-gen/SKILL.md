@@ -67,7 +67,7 @@ Pitfall: long descriptions like "young East Asian woman, oval face, clear eyes..
 ${BUN_X} {baseDir}/scripts/main.ts --prompt "A cat" --image cat.png
 
 # With aspect ratio and high quality
-${BUN_X} {baseDir}/scripts/main.ts --prompt "A landscape" --image out.png --ar 16:9 --quality 2k
+${BUN_X} {baseDir}/scripts/main.ts --prompt "A landscape" --image out.png --ar 16:9 --quality normal
 
 # Prompt from files
 ${BUN_X} {baseDir}/scripts/main.ts --promptfiles system.md content.md --image out.png
