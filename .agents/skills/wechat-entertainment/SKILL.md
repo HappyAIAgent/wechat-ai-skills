@@ -140,13 +140,25 @@ bun run .agents/skills/easy-markdown-to-html/scripts/main.ts "00-草稿/20260823
 
 ### Step 8: 发布
 
+**先 `--dry-run` 预览**（渲染 + 图片扫描 + 标题提取，不发网络请求），核对标题、摘要、封面、图片无误：
+
 ```bash
 # 预览
 bun run .agents/skills/easy-post-to-wechat/scripts/main.ts "00-草稿/20260823_事件简称/article.html" \
   --appid $WECHAT_APP_ID --secret $WECHAT_APP_SECRET \
   --cover "00-草稿/20260823_事件简称/images/cover.png" \
   --dry-run
+```
 
+**发布前交互式确认**（默认执行，`--publish` 跳过）：用 `AskUserQuestion` 询问用户下一步：
+
+| 选项 | 行为 |
+|------|------|
+| **确认发布** | 执行下方 API 命令，提交到公众号草稿箱 |
+| **修改文章** | 返回 Step 4 修改文章内容 |
+| **取消发布** | 结束流程，产物保留在 `00-草稿/` 目录 |
+
+```bash
 # 确认后发布
 bun run .agents/skills/easy-post-to-wechat/scripts/main.ts "00-草稿/20260823_事件简称/article.html" \
   --appid $WECHAT_APP_ID --secret $WECHAT_APP_SECRET \
