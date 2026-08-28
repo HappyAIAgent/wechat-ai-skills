@@ -35,6 +35,7 @@
 
 - **无构建系统、无测试、无 lint** — 这是内容工作流项目，不是代码项目
 - **微信 API 不支持 WebP 图片**：上传会报 `40113: unsupported file type`。发布前所有图片（含封面）需转为 PNG，用 `baoyu-compress-image` 的 `-f png --keep` 或 PIL 转换
+- **封面图不用 AI 生图**：从已下载图片选一张作底图（影评用官方海报/剧照、汽车用实车图、娱乐用实拍图），用各自 skill 的 `cover.ts` 脚本裁剪 + 叠标题合成，禁止纯色/AI 生图兜底
 - **Windows 下勿用 ImageMagick 的 `convert`**：会被 PowerShell 解析为别名，用 `magick` 命令代替
 - **归档时图片路径必须改为相对路径 `images/`**：在 `article.md` 中统一替换
 - **`humanizer-zh` 仅用于观点原创型文章**：访谈重播型跳过此步骤

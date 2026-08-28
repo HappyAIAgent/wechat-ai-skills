@@ -44,24 +44,7 @@ bun run .agents/skills/wechat-entertainment/scripts/entertainment-research.ts "<
 - 网友反应（情绪分布、热门评论）
 - 相关事件
 
-### Step 2: 封面生成
-
-```bash
-# 默认八卦风格
-bun run .agents/skills/wechat-entertainment/scripts/cover.ts \
-  --title "事件标题" \
-  --subtitle "一句话事件核心" \
-  --style default \
-  --images cover.jpg \
-  00-草稿/20260823_事件简称/images/cover.png
-
-# 可选风格
-# --style breaking   突发新闻（红底白字）
-# --style exclusive  独家爆料（蓝底青字）
-# --style gossip     吃瓜日常（绿底白字）
-```
-
-### Step 3: 配图
+### Step 2: 配图
 
 1. 搜索事件相关图片（当事人照片、现场图等）
 2. 下载到 `00-草稿/20260823_事件简称/images/`
@@ -71,6 +54,28 @@ bun run .agents/skills/wechat-entertainment/scripts/cover.ts \
      -f png --keep 00-草稿/20260823_事件简称/images/*.webp
    ```
 4. 创建 `00-草稿/20260823_事件简称/image-prompts.md`
+
+### Step 3: 封面生成
+
+**封面不用 AI 生图**：从 Step 2 已下载的 `images/` 里挑一张最合适的图（当事人高清照 / 现场图 / 最能一眼带出事件核心情绪的图）作底图，用 `cover.ts` 脚本裁剪 + 叠加标题合成封面：
+
+```bash
+# 从已下载图片中选一张作底图（禁止 AI 生图），如 images/event-01.jpg
+bun run .agents/skills/wechat-entertainment/scripts/cover.ts \
+  --title "事件标题" \
+  --subtitle "一句话事件核心" \
+  --style default \
+  --images "00-草稿/20260823_事件简称/images/event-01.jpg" \
+  00-草稿/20260823_事件简称/images/cover.png
+
+# 可选风格（只改叠加层的配色/装饰，不改底图）
+# --style breaking   突发新闻（红底白字）
+# --style exclusive  独家爆料（蓝底青字）
+# --style gossip     吃瓜日常（绿底白字）
+```
+
+- 底图必须来自 `images/` 已下载图片，**严禁 AI 生图**；`--images` 未传底图时脚本会直接报错
+- 输出 `images/cover.png`（必须 PNG，微信不支持 WebP）
 
 ### Step 4: 写作
 
@@ -199,12 +204,14 @@ DIR="00-草稿/${DATE}_${SHORT}"
 # Step 1: 调研
 bun run .agents/skills/wechat-entertainment/scripts/entertainment-research.ts "$EVENT" "$DIR"
 
-# Step 2: 封面
+# Step 2: 配图（搜索并下载事件图片到 $DIR/images/，webp 转 png）
+
+# Step 3: 封面（从已下载图片中选一张作底图，禁止 AI 生图）
 bun run .agents/skills/wechat-entertainment/scripts/cover.ts \
   --title "$EVENT" --subtitle "事件核心一句话" --style gossip \
-  --images cover.jpg "$DIR/images/cover.png"
+  --images "$DIR/images/event-01.jpg" "$DIR/images/cover.png"
 
-# Step 4-6: 写作（由 AI 完成）
+# Step 4: 写作（由 AI 完成）
 # ... 写作完成后 ...
 
 # Step 5: 去AI味

@@ -2,14 +2,16 @@
 /**
  * cover.ts — 八卦文章封面图生成器
  *
- * 生成 900×383 (2.35:1) 公众号封面，带深色半透明遮罩和白色文字。
- * 封面风格偏八卦/爆料感，使用醒目字体和对比色。
+ * 以「已下载的事件图片」为底图（不用 AI 生图），裁剪为 900×383 (2.35:1)
+ * 公众号封面，叠加标题/副标题文字与八卦风格装饰，输出 PNG。
  *
  * 依赖: sharp（自动安装）
  *
  * 用法:
- *   bun run cover.ts --title "XX深夜密会神秘人" --subtitle "狗仔队独家追踪" --images cover.jpg output.png
- *   bun run cover.ts --title "XX官宣恋情" --subtitle "经纪人证实" --images img1.jpg img2.jpg output.png
+ *   bun run cover.ts --title "XX深夜密会神秘人" --subtitle "狗仔队独家追踪" --images event-01.jpg output.png
+ *   bun run cover.ts --title "XX官宣恋情" --subtitle "经纪人证实" --images img1.jpg output.png
+ *
+ * 注意: --images 至少传一张底图（从已下载图片中选），不传会报错；禁止纯色/AI 生图兜底。
  */
 
 import sharp from "sharp";
@@ -70,10 +72,11 @@ function parseArgs(): CliArgs {
     }
   }
 
-  if (!opts.title || !opts.outputPath) {
-    console.error("用法: bun run cover.ts --title <标题> --subtitle <副标题> [--images <图1> ...] <输出路径>");
+  if (!opts.title || !opts.outputPath || opts.images.length === 0) {
+    console.error("用法: bun run cover.ts --title <标题> --subtitle <副标题> --images <底图> [<底图2>...] <输出路径>");
     console.error("选项:");
-    console.error("  --style <default|breaking|exclusive|gossip>  封面风格");
+    console.error("  --style <default|breaking|exclusive|gossip>  封面风格（叠加层配色）");
+    console.error("  --images <底图>  必填，从已下载图片中选一张作底图（禁止 AI 生图）");
     process.exit(1);
   }
 
@@ -217,28 +220,15 @@ function escapeXml(text: string): string {
 async function createCover(opts: CliArgs): Promise<Buffer> {
   const { width, height, images } = opts;
 
-  // 准备背景
-  let background: sharp.Sharp;
-
-  if (images.length > 0) {
-    // 使用第一张图片作为背景
-    const bgPath = images[0];
-    if (!existsSync(bgPath)) {
-      throw new Error(`背景图片不存在: ${bgPath}`);
-    }
-
-    background = sharp(bgPath).resize(width, height, { fit: "cover", position: "center" });
-  } else {
-    // 无图片时使用纯色背景
-    background = sharp({
-      create: {
-        width,
-        height,
-        channels: 3,
-        background: { r: 30, g: 0, b: 50 },
-      },
-    });
+  // 底图必须来自已下载图片，禁止 AI 生图 / 纯色兜底
+  if (images.length === 0) {
+    throw new Error("必须指定 --images 底图（从已下载的事件图片中选一张）");
   }
+  const bgPath = images[0];
+  if (!existsSync(bgPath)) {
+    throw new Error(`背景图片不存在: ${bgPath}`);
+  }
+  const background = sharp(bgPath).resize(width, height, { fit: "cover", position: "center" });
 
   // 创建 SVG 覆盖层
   const svgOverlay = createSvgOverlay(opts);

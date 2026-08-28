@@ -246,4 +246,5 @@ Claude Code 通过扫描 `.claude/skills/<技能名>/SKILL.md` 来发现技能�
 - 图片路径在归档时必须改为相对路径 `images/`
 - `humanizer-zh` 仅用于观点原创型文章，访谈重播型跳过
 - **微信 API 不支持 WebP 图片**：上传会报 `40113: unsupported file type`。发布前所有图片（含封面）需转为 PNG，用 `baoyu-compress-image` 的 `-f png --keep` 或 PIL 转换（Windows 下勿用 ImageMagick 的 `convert`，会被 PowerShell 解析为别名）
+- **封面图不用 AI 生图**：从已下载的图片中选一张作底图（影评用官方海报/剧照、汽车用实车图、娱乐用事件实拍图），用各自 skill 的 `cover.ts` 脚本裁剪 + 叠标题合成，禁止纯色/AI 生图兜底
 - 发布公众号后建议在后台手动确认封面图、摘要与图片展示是否正常
