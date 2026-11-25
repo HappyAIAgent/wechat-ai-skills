@@ -10,13 +10,13 @@ type DashScopeModelSpec = {
 };
 
 const DEFAULT_MODEL = "qwen-image-3.0-pro";
-const MIN_QWEN_3_TOTAL_PIXELS = 512 * 512;
-const MAX_QWEN_3_TOTAL_PIXELS = 2048 * 2048;
+const MIN_QWEN_2_TOTAL_PIXELS = 512 * 512;
+const MAX_QWEN_2_TOTAL_PIXELS = 2048 * 2048;
 const SIZE_STEP = 16;
 const QWEN_NEGATIVE_PROMPT =
   "低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感，构图混乱，文字模糊，扭曲";
 
-const QWEN_3_TARGET_PIXELS: Record<Quality, number> = {
+const QWEN_2_TARGET_PIXELS: Record<Quality, number> = {
   normal: 1024 * 1024,
   "2k": 1536 * 1536,
 };
@@ -31,7 +31,7 @@ const WAN27_TARGET_PIXELS: Record<Quality, number> = {
   "2k": 2048 * 2048,
 };
 
-const QWEN_3_RECOMMENDED: Record<string, Record<Quality, string>> = {
+const QWEN_2_RECOMMENDED: Record<string, Record<Quality, string>> = {
   "1:1": { normal: "1024*1024", "2k": "1536*1536" },
   "2:3": { normal: "768*1152", "2k": "1024*1536" },
   "3:2": { normal: "1152*768", "2k": "1536*1024" },
@@ -75,7 +75,7 @@ const LEGACY_STANDARD_SIZES_2K: [number, number][] = [
   [2048, 2048],
 ];
 
-const QWEN_3_SPEC: DashScopeModelSpec = {
+const QWEN_2_SPEC: DashScopeModelSpec = {
   family: "qwen2",
   defaultSize: "1024*1024",
 };
@@ -96,8 +96,12 @@ const LEGACY_SPEC: DashScopeModelSpec = {
 };
 
 const MODEL_SPEC_ALIASES: Record<string, DashScopeModelSpec> = {
-  "qwen-image-3.0-pro": QWEN_3_SPEC,
-  "qwen-image-3.0": QWEN_3_SPEC,
+  "qwen-image-3.0-pro": QWEN_2_SPEC,
+  "qwen-image-2.0-pro": QWEN_2_SPEC,
+  "qwen-image-2.0-pro-2026-04-22": QWEN_2_SPEC,
+  "qwen-image-2.0-pro-2026-03-03": QWEN_2_SPEC,
+  "qwen-image-2.0": QWEN_2_SPEC,
+  "qwen-image-2.0-2026-03-03": QWEN_2_SPEC,
   "qwen-image-max": QWEN_FIXED_SPEC,
   "qwen-image-max-2025-12-30": QWEN_FIXED_SPEC,
   "qwen-image-plus": QWEN_FIXED_SPEC,
@@ -298,32 +302,32 @@ export function getSizeFromAspectRatio(ar: string | null, quality: CliArgs["qual
   return best;
 }
 
-export function getQwen3SizeFromAspectRatio(ar: string | null, quality: CliArgs["quality"]): string {
+export function getQwen2SizeFromAspectRatio(ar: string | null, quality: CliArgs["quality"]): string {
   const normalizedQuality = normalizeQuality(quality);
 
   if (!ar) {
-    return QWEN_3_RECOMMENDED["1:1"][normalizedQuality];
+    return QWEN_2_RECOMMENDED["1:1"][normalizedQuality];
   }
 
-  const recommendedRatio = findKnownRatioKey(ar, Object.keys(QWEN_3_RECOMMENDED));
+  const recommendedRatio = findKnownRatioKey(ar, Object.keys(QWEN_2_RECOMMENDED));
   if (recommendedRatio) {
-    return QWEN_3_RECOMMENDED[recommendedRatio][normalizedQuality];
+    return QWEN_2_RECOMMENDED[recommendedRatio][normalizedQuality];
   }
 
   const parsed = parseAspectRatio(ar);
   if (!parsed) {
-    return QWEN_3_RECOMMENDED["1:1"][normalizedQuality];
+    return QWEN_2_RECOMMENDED["1:1"][normalizedQuality];
   }
 
   const targetRatio = parsed.width / parsed.height;
-  const targetPixels = QWEN_3_TARGET_PIXELS[normalizedQuality];
+  const targetPixels = QWEN_2_TARGET_PIXELS[normalizedQuality];
   const rawWidth = Math.sqrt(targetPixels * targetRatio);
   const rawHeight = Math.sqrt(targetPixels / targetRatio);
   const fitted = fitToPixelBudget(
     rawWidth,
     rawHeight,
-    MIN_QWEN_3_TOTAL_PIXELS,
-    MAX_QWEN_3_TOTAL_PIXELS,
+    MIN_QWEN_2_TOTAL_PIXELS,
+    MAX_QWEN_2_TOTAL_PIXELS,
   );
 
   return formatSize(fitted.width, fitted.height);
@@ -413,7 +417,7 @@ function getQwenFixedSizeFromAspectRatio(ar: string | null, quality: CliArgs["qu
   if (!ratioKey) {
     throw new Error(
       `DashScope model supports only fixed ratios ${Object.keys(QWEN_FIXED_SIZES_BY_RATIO).join(", ")}. ` +
-      `For custom ratios like "${ar}", use --model qwen-image-3.0-pro.`
+      `For custom ratios like "${ar}", use --model qwen-image-2.0-pro.`
     );
   }
 
@@ -432,10 +436,10 @@ function validateQwen2Size(size: string): string {
   const normalized = normalizeSize(size);
   const parsed = validateSizeFormat(normalized);
   const totalPixels = parsed.width * parsed.height;
-  if (totalPixels < MIN_QWEN_3_TOTAL_PIXELS || totalPixels > MAX_QWEN_3_TOTAL_PIXELS) {
+  if (totalPixels < MIN_QWEN_2_TOTAL_PIXELS || totalPixels > MAX_QWEN_2_TOTAL_PIXELS) {
     throw new Error(
-      `DashScope qwen-image-3.0* models require total pixels between ${MIN_QWEN_3_TOTAL_PIXELS} ` +
-      `and ${MAX_QWEN_3_TOTAL_PIXELS}. Received ${normalized} (${totalPixels} pixels).`
+      `DashScope qwen-image-2.0* models require total pixels between ${MIN_QWEN_2_TOTAL_PIXELS} ` +
+      `and ${MAX_QWEN_2_TOTAL_PIXELS}. Received ${normalized} (${totalPixels} pixels).`
     );
   }
   return normalized;
@@ -474,7 +478,7 @@ export function resolveSizeForModel(
   }
 
   if (spec.family === "qwen2") {
-    return getQwen3SizeFromAspectRatio(args.aspectRatio, args.quality);
+    return getQwen2SizeFromAspectRatio(args.aspectRatio, args.quality);
   }
 
   if (spec.family === "qwenFixed") {

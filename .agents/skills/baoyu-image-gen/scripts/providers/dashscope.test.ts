@@ -5,7 +5,7 @@ import {
   generateImage,
   getDefaultModel,
   getModelFamily,
-  getQwen3SizeFromAspectRatio,
+  getQwen2SizeFromAspectRatio,
   getSizeFromAspectRatio,
   getWan27SizeFromAspectRatio,
   normalizeSize,
@@ -80,6 +80,8 @@ test("DashScope aspect-ratio parsing accepts numeric ratios only", () => {
 
 test("DashScope model family routing distinguishes qwen-2.0, fixed-size qwen, wan2.7, and legacy models", () => {
   assert.equal(getModelFamily("qwen-image-3.0-pro"), "qwen2");
+  assert.equal(getModelFamily("qwen-image-2.0-pro"), "qwen2");
+  assert.equal(getModelFamily("qwen-image-2.0-pro-2026-04-22"), "qwen2");
   assert.equal(getModelFamily("qwen-image"), "qwenFixed");
   assert.equal(getModelFamily("wan2.7-image"), "wan27");
   assert.equal(getModelFamily("wan2.7-image-pro"), "wan27");
@@ -94,15 +96,15 @@ test("Legacy DashScope size selection keeps the previous quality-based heuristic
   assert.equal(getSizeFromAspectRatio("invalid", "2k"), "1536*1536");
 });
 
-test("Qwen 3.0 recommended sizes follow the official common-ratio table", () => {
-  assert.equal(getQwen3SizeFromAspectRatio(null, "normal"), "1024*1024");
-  assert.equal(getQwen3SizeFromAspectRatio(null, "2k"), "1536*1536");
-  assert.equal(getQwen3SizeFromAspectRatio("16:9", "normal"), "1280*720");
-  assert.equal(getQwen3SizeFromAspectRatio("21:9", "2k"), "2048*872");
+test("Qwen 2.0 recommended sizes follow the official common-ratio table", () => {
+  assert.equal(getQwen2SizeFromAspectRatio(null, "normal"), "1024*1024");
+  assert.equal(getQwen2SizeFromAspectRatio(null, "2k"), "1536*1536");
+  assert.equal(getQwen2SizeFromAspectRatio("16:9", "normal"), "1280*720");
+  assert.equal(getQwen2SizeFromAspectRatio("21:9", "2k"), "2048*872");
 });
 
-test("Qwen 3.0 derives free-form sizes within pixel budget for uncommon ratios", () => {
-  const size = getQwen3SizeFromAspectRatio("5:2", "normal");
+test("Qwen 2.0 derives free-form sizes within pixel budget for uncommon ratios", () => {
+  const size = getQwen2SizeFromAspectRatio("5:2", "normal");
   const parsed = parseSize(size);
   assert.ok(parsed);
   assert.ok(parsed.width * parsed.height >= 512 * 512);
@@ -110,9 +112,9 @@ test("Qwen 3.0 derives free-form sizes within pixel budget for uncommon ratios",
   assert.ok(Math.abs(parsed.width / parsed.height - 2.5) < 0.08);
 });
 
-test("resolveSizeForModel validates explicit qwen-image-3.0 sizes by total pixels", () => {
+test("resolveSizeForModel validates explicit qwen-image-2.0 sizes by total pixels", () => {
   assert.equal(
-    resolveSizeForModel("qwen-image-3.0-pro", {
+    resolveSizeForModel("qwen-image-2.0-pro", {
       size: "2048x872",
       aspectRatio: null,
       quality: "2k",
@@ -122,7 +124,7 @@ test("resolveSizeForModel validates explicit qwen-image-3.0 sizes by total pixel
 
   assert.throws(
     () =>
-      resolveSizeForModel("qwen-image-3.0-pro", {
+      resolveSizeForModel("qwen-image-2.0-pro", {
         size: "4096x4096",
         aspectRatio: null,
         quality: "2k",
