@@ -5,7 +5,8 @@
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "computedHash": "548a1f92c7ff55081c65ec1577ff5136beb1d0f58252d448d5bd43f05fefc703"
+      "computedHash": "a0dfac7503f69bcf529b2660fc79964064c4f179eb65695904ddc45fc0d99d20",
+      "commit": "3f43a2affd9944298104b7bb39d5f241aef85e91"
     },
     "baoyu-article-illustrator": {
       "source": "jimliu/baoyu-skills",
