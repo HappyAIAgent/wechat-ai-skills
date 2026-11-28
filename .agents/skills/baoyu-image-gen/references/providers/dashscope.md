@@ -2,9 +2,9 @@
 
 ## Model Families
 
-**`qwen-image-3.0*` / `qwen-image-2.0*`** — recommended modern family (identical sizing envelope). Members: `qwen-image-3.0-pro`, `qwen-image-2.0-pro`, `qwen-image-2.0-pro-2026-04-22`, `qwen-image-2.0-pro-2026-03-03`, `qwen-image-2.0`, `qwen-image-2.0-2026-03-03`.
+**`qwen-image-3.0*` / `qwen-image-2.0*`** — recommended modern family (identical sizing envelope). Members: `qwen-image-3.0`, `qwen-image-3.0-pro`, `qwen-image-2.0-pro`, `qwen-image-2.0-pro-2026-04-22`, `qwen-image-2.0-pro-2026-03-03`, `qwen-image-2.0`, `qwen-image-2.0-2026-03-03`.
 
-- `qwen-image-3.0-pro` is the newest flagship and the default here; `qwen-image-2.0-pro` remains selectable with the same sizing rules
+- `qwen-image-3.0-pro` is the newest flagship and the script default; `qwen-image-3.0` is the standard variant (faster generation, same sizing rules); `qwen-image-2.0-pro` remains selectable with the same sizing rules
 - Free-form `size` in `宽*高` format
 - Total pixels must be between `512*512` and `2048*2048`
 - Default ≈ `1024*1024`

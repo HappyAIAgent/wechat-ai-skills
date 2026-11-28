@@ -24,7 +24,7 @@ default_model:
   openai: null              # e.g., "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2", "gpt-image-1.5"
   azure: null               # Azure deployment name, e.g., "gpt-image-2.5-flare" or "image-prod"
   openrouter: null          # e.g., "google/gemini-3.1-flash-image"
-  dashscope: null           # e.g., "qwen-image-3.0-pro", "qwen-image-2.0-pro"
+  dashscope: null           # e.g., "qwen-image-3.0-pro", "qwen-image-3.0" (standard, faster), "qwen-image-2.0-pro"
   zai: null                 # e.g., "glm-image"
   minimax: null             # e.g., "image-01"
   replicate: null           # e.g., "google/nano-banana-2"

@@ -96,6 +96,7 @@ const LEGACY_SPEC: DashScopeModelSpec = {
 };
 
 const MODEL_SPEC_ALIASES: Record<string, DashScopeModelSpec> = {
+  "qwen-image-3.0": QWEN_2_SPEC,
   "qwen-image-3.0-pro": QWEN_2_SPEC,
   "qwen-image-2.0-pro": QWEN_2_SPEC,
   "qwen-image-2.0-pro-2026-04-22": QWEN_2_SPEC,
@@ -438,7 +439,7 @@ function validateQwen2Size(size: string): string {
   const totalPixels = parsed.width * parsed.height;
   if (totalPixels < MIN_QWEN_2_TOTAL_PIXELS || totalPixels > MAX_QWEN_2_TOTAL_PIXELS) {
     throw new Error(
-      `DashScope qwen-image-2.0* models require total pixels between ${MIN_QWEN_2_TOTAL_PIXELS} ` +
+      `DashScope qwen-image-3.0* / qwen-image-2.0* models require total pixels between ${MIN_QWEN_2_TOTAL_PIXELS} ` +
       `and ${MAX_QWEN_2_TOTAL_PIXELS}. Received ${normalized} (${totalPixels} pixels).`
     );
   }

@@ -200,6 +200,8 @@ question: "Default DashScope image generation model?"
 options:
   - label: "qwen-image-3.0-pro (Recommended)"
     description: "Newest Qwen flagship for text rendering and custom sizes"
+  - label: "qwen-image-3.0"
+    description: "3.0 standard — faster generation, same sizing rules"
   - label: "qwen-image-2.0-pro"
     description: "Best-verified DashScope model; same sizing rules"
   - label: "qwen-image-2.0"

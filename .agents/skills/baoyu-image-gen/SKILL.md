@@ -142,7 +142,7 @@ Priority for every provider: CLI `--model <id>` > EXTEND.md `default_model.[prov
 
 - **OpenAI**: default `gpt-image-2.5-flare` (fastest). `gpt-image-2.5-sunburst` is most capable for complex scenes and precise edits; `gpt-image-2`, `gpt-image-1.5`, `gpt-image-1` and dated snapshots (e.g. `gpt-image-2.5-flare-2026-09-08`, `gpt-image-2-2026-04-21`) stay selectable.
 - **Google**: default `gemini-3-pro-image`. `gemini-3.1-flash-image` is faster/cheaper; `gemini-3.1-flash-lite-image` is cheapest and 1K-only (`--quality 2k` / `--imageSize 2K|4K` clamp to 1K with a warning).
-- **DashScope**: default `qwen-image-3.0-pro` (newest flagship); `qwen-image-2.0-pro` has the same sizing rules and stays selectable.
+- **DashScope**: script default `qwen-image-3.0-pro` (newest flagship); `qwen-image-3.0` is the faster standard variant and `qwen-image-2.0-pro` stays selectable — all follow the same sizing rules.
 - **Azure**: `--model` / `default_model.azure` is the deployment name (`AZURE_OPENAI_DEPLOYMENT`, alias `AZURE_OPENAI_IMAGE_MODEL`). Use `gpt-image-2.5-flare` if the deployment is named after the model, else the exact custom name.
 
 Before each generation, display:
